@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mr. Boules — Math Class Hub</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface-1: #f0f0ee;
+      --text-primary: #1a1a18;
+      --text-secondary: #5f5e5a;
+      --text-muted: #888780;
+      --border: rgba(0,0,0,0.1);
+      --border-strong: rgba(0,0,0,0.18);
+      --radius: 8px;
+      --accent: #2563eb;
+      --accent-bg: #eff6ff;
+      --accent-text: #1d4ed8;
+      --accent-border: #bfdbfe;
+      --danger-bg: #fef2f2;
+      --danger-text: #b91c1c;
+      --success-bg: #f0fdf4;
+      --success-text: #15803d;
+      --warning-bg: #fffbeb;
+      --warning-text: #b45309;
+      --pro-bg: #f5f3ff;
+      --pro-text: #6d28d9;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18; --surface: #2c2c2a; --surface-1: #232321;
+        --text-primary: #f0eeea; --text-secondary: #b4b2a9; --text-muted: #888780;
+        --border: rgba(255,255,255,0.1); --border-strong: rgba(255,255,255,0.18);
+        --accent: #3b82f6; --accent-bg: #1e3a5f; --accent-text: #93c5fd; --accent-border: #1e40af;
+        --danger-bg: #3b1212; --danger-text: #fca5a5;
+        --success-bg: #14300f; --success-text: #86efac;
+        --warning-bg: #3b2500; --warning-text: #fcd34d;
+        --pro-bg: #2e1d5e; --pro-text: #c4b5fd;
+      }
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; }
+
+    /* ── LOGIN SCREEN ── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .login-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: 20px; padding: 2.5rem 2rem; width: 100%; max-width: 400px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .login-logo {
+      width: 52px; height: 52px; border-radius: 14px; background: var(--accent);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;
+    }
+    .login-logo i { font-size: 26px; color: #fff; }
+    .login-card h1 { font-size: 20px; font-weight: 600; text-align: center; color: var(--text-primary); }
+    .login-card p  { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 4px; margin-bottom: 1.75rem; }
+    .login-label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 5px; margin-top: 14px; }
+    .login-input {
+      width: 100%; font-size: 14px; font-family: inherit;
+      color: var(--text-primary); background: var(--surface-1);
+      border: 0.5px solid var(--border-strong); border-radius: var(--radius);
+      padding: 10px 12px; outline: none; transition: border-color 0.15s;
+    }
+    .login-input:focus { border-color: var(--accent); }
+    .login-btn {
+      width: 100%; margin-top: 1.5rem; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); padding: 11px;
+      font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .login-btn:hover { opacity: 0.88; }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .login-error {
+      font-size: 12px; color: var(--danger-text); background: var(--danger-bg);
+      border-radius: var(--radius); padding: 8px 12px; margin-top: 10px; display: none;
+    }
+    .login-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 1rem; }
+
+    /* ── HUB ── */
+    #hub-screen { display: none; }
+    .page { max-width: 760px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+    .hub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 12px; }
+    .hub-title { display: flex; align-items: center; gap: 14px; }
+    .hub-logo { width: 44px; height: 44px; border-radius: 12px; background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .hub-logo i { font-size: 22px; color: #fff; }
+    .hub-name h1 { font-size: 20px; font-weight: 600; color: var(--text-primary); line-height: 1.2; }
+    .hub-name p  { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .role-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+    .role-badge.admin   { background: var(--warning-bg); color: var(--warning-text); }
+    .role-badge.student { background: var(--accent-bg);  color: var(--accent-text); }
+    .logout-btn {
+      background: transparent; border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius); padding: 7px 13px; font-size: 13px;
+      color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
+    }
+    .logout-btn:hover { background: var(--surface-1); }
+
+    .tabs { display: flex; gap: 2px; border-bottom: 0.5px solid var(--border); margin-bottom: 1.75rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { padding: 10px 14px; font-size: 13px; color: var(--text-secondary); cursor: pointer; border: none; background: transparent; border-bottom: 2px solid transparent; margin-bottom: -0.5px; display: flex; align-items: center; gap: 6px; white-space: nowrap; font-family: inherit; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+    .tab:hover:not(.active) { color: var(--text-primary); }
+
+    .section { display: none; }
+    .section.active { display: block; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .section-title { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+
+    .add-btn { display: none; align-items: center; gap: 5px; background: var(--accent-bg); color: var(--accent-text); border: 0.5px solid var(--accent-border); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .add-btn:hover { background: var(--accent); color: #fff; }
+    .admin-mode .add-btn { display: flex; }
+
+    .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 10px; }
+    .card-row { display: flex; align-items: flex-start; gap: 12px; }
+    .card-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-icon i { font-size: 18px; }
+    .card-icon.ann  { background: var(--success-bg); } .card-icon.ann i  { color: var(--success-text); }
+    .card-icon.vid  { background: var(--danger-bg);  } .card-icon.vid i  { color: var(--danger-text);  }
+    .card-icon.hw   { background: var(--warning-bg); } .card-icon.hw i   { color: var(--warning-text); }
+    .card-icon.note { background: var(--accent-bg);  } .card-icon.note i { color: var(--accent-text);  }
+    .card-icon.sched{ background: var(--pro-bg);     } .card-icon.sched i{ color: var(--pro-text);     }
+
+    .card-body { flex: 1; min-width: 0; }
+    .card-title { font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .card-meta  { font-size: 12px; color: var(--text-muted); }
+    .card-desc  { font-size: 13px; color: var(--text-secondary); margin-top: 6px; line-height: 1.55; }
+    .card-link  { font-size: 13px; color: var(--accent-text); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
+    .card-link:hover { text-decoration: underline; }
+    .pin-card { border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; }
+
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .badge.new       { background: var(--accent-bg);  color: var(--accent-text);  }
+    .badge.important { background: var(--warning-bg); color: var(--warning-text); }
+    .badge.due       { background: var(--danger-bg);  color: var(--danger-text);  }
+    .badge.done      { background: var(--success-bg); color: var(--success-text); }
+
+    .del-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; flex-shrink: 0; }
+    .del-btn:hover { background: var(--danger-bg); color: var(--danger-text); }
+    .del-btn i { font-size: 16px; }
+
+    .empty { text-align: center; padding: 3.5rem 1rem; color: var(--text-muted); }
+    .empty i { font-size: 36px; margin-bottom: 12px; display: block; }
+    .empty p { font-size: 14px; }
+    .loading { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px; }
+
+    .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .sched-day { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 1rem; }
+    .sched-day-name { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+    .sched-item { padding: 6px 0; border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+    .sched-item:last-of-type { border-bottom: none; }
+    .sched-topic { font-size: 13px; color: var(--text-primary); }
+    .sched-time  { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+    .overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 0.5px solid var(--border); border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
+    .modal label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 5px; margin-top: 14px; }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal input[type="text"], .modal input[type="url"], .modal select, .modal textarea { width: 100%; font-size: 13px; font-family: inherit; color: var(--text-primary); background: var(--surface-1); border: 0.5px solid var(--border-strong); border-radius: var(--radius); padding: 9px 12px; outline: none; }
+    .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--accent); }
+    .modal textarea { min-height: 80px; resize: vertical; }
+    .modal select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.5rem; }
+    .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 9px 18px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-cancel { background: transparent; border: 0.5px solid var(--border-strong); border-radius: var(--radius); padding: 9px 18px; font-size: 13px; color: var(--text-secondary); cursor: pointer; font-family: inherit; }
+    .btn-cancel:hover { background: var(--surface-1); }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 20px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 480px) {
+      .hub-name h1 { font-size: 17px; }
+      .tab { padding: 9px 10px; font-size: 12px; }
+      .login-card { padding: 2rem 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-calculator"></i></div>
+    <h1>Mr. Boules — Math</h1>
+    <p>Sign in to access the class hub</p>
+
+    <label class="login-label">Email</label>
+    <input class="login-input" type="email" id="login-email" placeholder="your@email.com" />
+
+    <label class="login-label">Student ID <span style="color:var(--text-muted);font-weight:400">(your password)</span></label>
+    <input class="login-input" type="password" id="login-id" placeholder="e.g. A0A56" maxlength="5" style="text-transform:uppercase" />
+
+    <div class="login-error" id="login-error"></div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Sign in</button>
+    <p class="login-hint">Contact Mr. Boules if you don't have your ID</p>
+  </div>
+</div>
+
+<!-- ── HUB SCREEN ── -->
+<div id="hub-screen">
+  <div class="page" id="page">
+    <div class="hub-header">
+      <div class="hub-title">
+        <div class="hub-logo"><i class="ti ti-calculator"></i></div>
+        <div class="hub-name">
+          <h1>Mr. Boules — Math</h1>
+          <p id="user-email-display"></p>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="role-badge" id="role-badge"></span>
+        <button class="logout-btn" onclick="doLogout()"><i class="ti ti-logout"></i> Sign out</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="announcements"><i class="ti ti-speakerphone"></i> Announcements</button>
+      <button class="tab" data-tab="recordings"><i class="ti ti-video"></i> Recordings</button>
+      <button class="tab" data-tab="homework"><i class="ti ti-notebook"></i> Homework</button>
+      <button class="tab" data-tab="notes"><i class="ti ti-file-text"></i> Notes</button>
+      <button class="tab" data-tab="schedule"><i class="ti ti-calendar"></i> Schedule</button>
+    </div>
+
+    <div id="tab-announcements" class="section active">
+      <div class="section-header">
+        <span class="section-title">Announcements</span>
+        <button class="add-btn" onclick="openAdd('announcements')"><i class="ti ti-plus"></i> Add</button>
+      </div>
+      <div id="announcements-list"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div id="tab-recordings" class="section">
+      <div class="section-header">
+        <span class="section-title">Lecture Recordings</span>
+        <button class="add-btn" onclick="openAdd('recordings')"><i class="ti ti-plus"></i> Add</button>
+      </div>
+      <div id="recordings-list"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div id="tab-homework" class="section">
+      <div class="section-header">
+        <span class="section-title">Homework & Assignments</span>
+        <button class="add-btn" onclick="openAdd('homework')"><i class="ti ti-plus"></i> Add</button>
+      </div>
+      <div id="homework-list"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div id="tab-notes" class="section">
+      <div class="section-header">
+        <span class="section-title">Lecture Notes & Resources</span>
+        <button class="add-btn" onclick="openAdd('notes')"><i class="ti ti-plus"></i> Add</button>
+      </div>
+      <div id="notes-list"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div id="tab-schedule" class="section">
+      <div class="section-header">
+        <span class="section-title">Weekly Schedule</span>
+        <button class="add-btn" onclick="openAdd('schedule')"><i class="ti ti-plus"></i> Add</button>
+      </div>
+      <div id="schedule-list"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, deleteDoc, doc,
+    onSnapshot, query, orderBy, serverTimestamp, getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBGSbYUWWZQ_4zt_0JIJ-bc4tPZVfbhmt8",
+    authDomain: "mr-boules.firebaseapp.com",
+    projectId: "mr-boules",
+    storageBucket: "mr-boules.firebasestorage.app",
+    messagingSenderId: "263455567927",
+    appId: "1:263455567927:web:8fc3167510b775cad88fb2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  const DAY_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const ADMIN_EMAIL = "nada@admin.com"; // ← change this to your email
+  const ADMIN_ID    = "ADMIN";         // ← change this to your admin password
+
+  let currentUser = null;
+  let isAdmin = false;
+
+  // ── ID validation: 5 chars, starts with letter, 3 numbers, 2 letters ──
+  function validateID(id) {
+    if (!id || id.length !== 5) return false;
+    if (!/^[A-Za-z]/.test(id)) return false;
+    const letters  = id.replace(/[^A-Za-z]/g, '').length;
+    const numbers  = id.replace(/[^0-9]/g, '').length;
+    return letters === 2 && numbers === 3;
+  }
+
+  // ── Login ──
+  window.doLogin = async () => {
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const id    = document.getElementById('login-id').value.trim().toUpperCase();
+    const errEl = document.getElementById('login-error');
+    const btn   = document.getElementById('login-btn');
+    errEl.style.display = 'none';
+
+    // Admin check
+    if (email === ADMIN_EMAIL.toLowerCase() && id === ADMIN_ID) {
+      currentUser = { email, role: 'admin' };
+      isAdmin = true;
+      enterHub();
+      return;
+    }
+
+    // Validate ID format
+    if (!validateID(id)) {
+      errEl.textContent = 'Invalid ID format. Must be 5 characters (2 letters, 3 numbers, starting with a letter).';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      // Check Firestore students collection
+      const studentDoc = await getDoc(doc(db, 'students', email));
+      if (studentDoc.exists() && studentDoc.data().id === id) {
+        currentUser = { email, role: 'student' };
+        isAdmin = false;
+        enterHub();
+      } else {
+        errEl.textContent = 'Email or ID not found. Please check your details.';
+        errEl.style.display = 'block';
+      }
+    } catch(e) {
+      errEl.textContent = 'Connection error. Please try again.';
+      errEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  };
+
+  function enterHub() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('hub-screen').style.display = 'block';
+    document.getElementById('user-email-display').textContent = currentUser.email;
+    const badge = document.getElementById('role-badge');
+    if (isAdmin) {
+      badge.textContent = 'Admin';
+      badge.className = 'role-badge admin';
+      document.getElementById('page').classList.add('admin-mode');
+    } else {
+      badge.textContent = 'Student';
+      badge.className = 'role-badge student';
+    }
+    startListeners();
+    toast(`Welcome back! 👋`);
+  }
+
+  window.doLogout = () => {
+    currentUser = null;
+    isAdmin = false;
+    document.getElementById('hub-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-id').value = '';
+    document.getElementById('page').classList.remove('admin-mode');
+  };
+
+  // Allow pressing Enter on login
+  document.getElementById('login-id').addEventListener('keydown', e => { if (e.key === 'Enter') window.doLogin(); });
+  document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-id').focus(); });
+
+  // ── Escape ──
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Toast ──
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+  }
+
+  // ── Tabs ──
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Render ──
+  function delBtn(id, section) {
+    return isAdmin ? `<button class="del-btn" onclick="window._del('${section}','${id}')" aria-label="Delete"><i class="ti ti-trash"></i></button>` : '';
+  }
+
+  function renderAnnouncements(data) {
+    const el = document.getElementById('announcements-list');
+    if (!data.length) { el.innerHTML = `<div class="empty"><i class="ti ti-speakerphone"></i><p>No announcements yet.</p></div>`; return; }
+    el.innerHTML = data.map(item => `
+      <div class="card ${item.pinned ? 'pin-card' : ''}">
+        <div class="card-row">
+          <div class="card-icon ann"><i class="ti ${item.pinned ? 'ti-pin' : 'ti-speakerphone'}"></i></div>
+          <div class="card-body">
+            <div class="card-title">${esc(item.title)} ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}</div>
+            <div class="card-meta">${esc(item.date)}</div>
+            ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+          </div>
+          ${delBtn(item._id, 'announcements')}
+        </div>
+      </div>`).join('');
+  }
+
+  function renderRecordings(data) {
+    const el = document.getElementById('recordings-list');
+    if (!data.length) { el.innerHTML = `<div class="empty"><i class="ti ti-video"></i><p>No recordings posted yet.</p></div>`; return; }
+    el.innerHTML = data.map(item => `
+      <div class="card">
+        <div class="card-row">
+          <div class="card-icon vid"><i class="ti ti-player-play"></i></div>
+          <div class="card-body">
+            <div class="card-title">${esc(item.title)}</div>
+            <div class="card-meta">${esc(item.date)}</div>
+            ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+            ${item.link ? `<a class="card-link" href="${esc(item.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open recording</a>` : ''}
+          </div>
+          ${delBtn(item._id, 'recordings')}
+        </div>
+      </div>`).join('');
+  }
+
+  function renderHomework(data) {
+    const el = document.getElementById('homework-list');
+    if (!data.length) { el.innerHTML = `<div class="empty"><i class="ti ti-notebook"></i><p>No homework posted yet.</p></div>`; return; }
+    el.innerHTML = data.map(item => `
+      <div class="card">
+        <div class="card-row">
+          <div class="card-icon hw"><i class="ti ti-notebook"></i></div>
+          <div class="card-body">
+            <div class="card-title">${esc(item.title)} ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}</div>
+            <div class="card-meta">${esc(item.date)}</div>
+            ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+            ${item.link ? `<a class="card-link" href="${esc(item.link)}" target="_blank" rel="noopener"><i class="ti ti-download"></i> Download</a>` : ''}
+          </div>
+          ${delBtn(item._id, 'homework')}
+        </div>
+      </div>`).join('');
+  }
+
+  function renderNotes(data) {
+    const el = document.getElementById('notes-list');
+    if (!data.length) { el.innerHTML = `<div class="empty"><i class="ti ti-file-text"></i><p>No notes posted yet.</p></div>`; return; }
+    el.innerHTML = data.map(item => `
+      <div class="card">
+        <div class="card-row">
+          <div class="card-icon note"><i class="ti ti-file-text"></i></div>
+          <div class="card-body">
+            <div class="card-title">${esc(item.title)}</div>
+            <div class="card-meta">${esc(item.date)}</div>
+            ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+            ${item.link ? `<a class="card-link" href="${esc(item.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open file</a>` : ''}
+          </div>
+          ${delBtn(item._id, 'notes')}
+        </div>
+      </div>`).join('');
+  }
+
+  function renderSchedule(data) {
+    const el = document.getElementById('schedule-list');
+    if (!data.length) { el.innerHTML = `<div class="empty"><i class="ti ti-calendar"></i><p>No schedule posted yet.</p></div>`; return; }
+    const grouped = {};
+    data.forEach(item => { if (!grouped[item.day]) grouped[item.day] = []; grouped[item.day].push(item); });
+    const sorted = Object.keys(grouped).sort((a,b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+    el.innerHTML = `<div class="sched-grid">${sorted.map(day => `
+      <div class="sched-day">
+        <div class="sched-day-name">${esc(day)}</div>
+        ${grouped[day].map(item => `
+          <div class="sched-item">
+            <div><div class="sched-topic">${esc(item.topic)}</div><div class="sched-time">${esc(item.time)}</div></div>
+            ${delBtn(item._id, 'schedule')}
+          </div>`).join('')}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // ── Live listeners ──
+  const renderers = { announcements: renderAnnouncements, recordings: renderRecordings, homework: renderHomework, notes: renderNotes, schedule: renderSchedule };
+  function startListeners() {
+    Object.keys(renderers).forEach(section => {
+      const q = query(collection(db, section), orderBy('createdAt', 'desc'));
+      onSnapshot(q, snapshot => {
+        renderers[section](snapshot.docs.map(d => ({ _id: d.id, ...d.data() })));
+      });
+    });
+  }
+
+  // ── Delete ──
+  window._del = async (section, id) => {
+    if (!isAdmin) return;
+    try { await deleteDoc(doc(db, section, id)); toast('Deleted ✓'); }
+    catch(e) { toast('Error deleting'); }
+  };
+
+  // ── Add modal ──
+  window.openAdd = (section) => {
+    const labels = { announcements: 'New announcement', recordings: 'Add recording', homework: 'Add homework', notes: 'Add notes', schedule: 'Add schedule entry' };
+    let fields = '';
+    if (section === 'schedule') {
+      fields = `
+        <label>Day</label>
+        <select id="f-day"><option>Sunday</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option></select>
+        <label>Time</label><input type="text" id="f-time" placeholder="e.g. 10:00 AM" />
+        <label>Topic / Type</label><input type="text" id="f-topic" placeholder="e.g. Lecture, Office Hours" />`;
+    } else {
+      fields = `
+        <label>Title</label><input type="text" id="f-title" placeholder="Enter title..." />
+        <label>Description (optional)</label><textarea id="f-desc" placeholder="Add details..."></textarea>
+        <label>${section === 'homework' ? 'Due date' : 'Date'}</label>
+        <input type="text" id="f-date" placeholder="${section === 'homework' ? 'e.g. Due: Jul 5' : 'e.g. Jun 28'}" />
+        ${['recordings','notes','homework'].includes(section) ? `<label>Google Drive / YouTube link (optional)</label><input type="url" id="f-link" placeholder="https://..." />` : ''}
+        ${section === 'announcements' ? `<label>Badge</label><select id="f-badge"><option value="">None</option><option value="new">New</option><option value="important">Important</option></select><label>Pin to top?</label><select id="f-pin"><option value="">No</option><option value="yes">Yes</option></select>` : ''}
+        ${section === 'homework' ? `<label>Status</label><select id="f-badge"><option value="due">Due</option><option value="done">Done</option></select>` : ''}`;
+    }
+    document.getElementById('modal').innerHTML = `
+      <h2>${labels[section]}</h2>${fields}
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="submit-btn" onclick="submitAdd('${section}')">Add</button>
+      </div>`;
+    openModal();
+  };
+
+  window.submitAdd = async (section) => {
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    try {
+      let data = { createdAt: serverTimestamp() };
+      if (section === 'schedule') {
+        data.day   = document.getElementById('f-day').value;
+        data.time  = document.getElementById('f-time').value || '—';
+        data.topic = document.getElementById('f-topic').value || 'Class';
+      } else {
+        const title = document.getElementById('f-title')?.value?.trim();
+        if (!title) { document.getElementById('f-title').focus(); btn.disabled = false; btn.textContent = 'Add'; return; }
+        data.title  = title;
+        data.desc   = document.getElementById('f-desc')?.value?.trim() || '';
+        data.date   = document.getElementById('f-date')?.value?.trim() || 'Today';
+        data.link   = document.getElementById('f-link')?.value?.trim() || '';
+        data.badge  = document.getElementById('f-badge')?.value || '';
+        data.pinned = document.getElementById('f-pin')?.value === 'yes';
+      }
+      await addDoc(collection(db, section), data);
+      closeModal(); toast('Added successfully ✓');
+    } catch(e) { toast('Error saving. Try again.'); btn.disabled = false; btn.textContent = 'Add'; }
+  };
+
+  window.closeModal = () => document.getElementById('overlay').classList.remove('open');
+  function openModal() { document.getElementById('overlay').classList.add('open'); }
+  document.getElementById('overlay').addEventListener('click', e => { if (e.target === document.getElementById('overlay')) closeModal(); });
+</script>
+</body>
+</html>

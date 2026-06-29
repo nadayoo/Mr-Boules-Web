@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import Students — Mr. Boules Hub</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .card { background: #fff; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 20px; padding: 2rem; width: 100%; max-width: 560px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+    h1 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+    p  { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+    label { font-size: 13px; color: #5f5e5a; display: block; margin-bottom: 5px; margin-top: 14px; }
+    textarea { width: 100%; font-size: 13px; font-family: monospace; border: 0.5px solid rgba(0,0,0,0.18); border-radius: 8px; padding: 10px 12px; outline: none; min-height: 220px; resize: vertical; background: #f5f5f3; color: #1a1a18; }
+    textarea:focus { border-color: #2563eb; }
+    .btn { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: 1rem; width: 100%; }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .log { margin-top: 1rem; font-size: 12px; font-family: monospace; background: #f5f5f3; border-radius: 8px; padding: 10px 12px; max-height: 180px; overflow-y: auto; color: #5f5e5a; display: none; }
+    .log.show { display: block; }
+    .ok  { color: #15803d; }
+    .err { color: #b91c1c; }
+    .info { color: #1d4ed8; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>📋 Import Students</h1>
+  <p>Paste your student list below — one student per line in the format:<br><strong>email,ID</strong><br>This is a one-time setup tool. Keep this file private.</p>
+
+  <label>Student list (email,ID — one per line)</label>
+  <textarea id="input" ></textarea>
+
+  <button class="btn" id="import-btn" onclick="doImport()">Import Students to Firebase</button>
+  <div class="log" id="log"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBGSbYUWWZQ_4zt_0JIJ-bc4tPZVfbhmt8",
+    authDomain: "mr-boules.firebaseapp.com",
+    projectId: "mr-boules",
+    storageBucket: "mr-boules.firebasestorage.app",
+    messagingSenderId: "263455567927",
+    appId: "1:263455567927:web:8fc3167510b775cad88fb2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  function log(msg, type = '') {
+    const el = document.getElementById('log');
+    el.classList.add('show');
+    el.innerHTML += `<div class="${type}">${msg}</div>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function validateID(id) {
+    if (!id || id.length !== 5) return false;
+    if (!/^[A-Za-z]/.test(id)) return false;
+    const letters = id.replace(/[^A-Za-z]/g, '').length;
+    const numbers = id.replace(/[^0-9]/g, '').length;
+    return letters === 2 && numbers === 3;
+  }
+
+  window.doImport = async () => {
+    const btn   = document.getElementById('import-btn');
+    const input = document.getElementById('input').value.trim();
+    const logEl = document.getElementById('log');
+    logEl.innerHTML = '';
+    logEl.classList.add('show');
+
+    if (!input) { log('⚠️ Nothing to import.', 'err'); return; }
+
+    const lines = input.split('\n').map(l => l.trim()).filter(Boolean);
+    btn.disabled = true;
+    btn.textContent = 'Importing...';
+    log(`Starting import of ${lines.length} students...`, 'info');
+
+    let success = 0, errors = 0;
+
+    for (const line of lines) {
+      const parts = line.split(',');
+      if (parts.length !== 2) { log(`✗ Skipped (bad format): ${line}`, 'err'); errors++; continue; }
+      const email = parts[0].trim().toLowerCase();
+      const id    = parts[1].trim().toUpperCase();
+
+      if (!email.includes('@')) { log(`✗ Invalid email: ${email}`, 'err'); errors++; continue; }
+      if (!validateID(id)) { log(`✗ Invalid ID format: ${id} (must be 5 chars, 2 letters, 3 numbers, start with letter)`, 'err'); errors++; continue; }
+
+      try {
+        await setDoc(doc(db, 'students', email), { id, email, createdAt: new Date().toISOString() });
+        log(`✓ ${email} — ${id}`, 'ok');
+        success++;
+      } catch(e) {
+        log(`✗ Failed to save ${email}: ${e.message}`, 'err');
+        errors++;
+      }
+    }
+
+    log(`──────────────────`, '');
+    log(`Done! ${success} imported, ${errors} errors.`, success > 0 ? 'ok' : 'err');
+    btn.disabled = false;
+    btn.textContent = 'Import Students to Firebase';
+  };
+</script>
+</body>
+</html>
