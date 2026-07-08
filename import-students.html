@@ -1,111 +1,284 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Import Students — Mr. Boules Hub</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-    .card { background: #fff; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 20px; padding: 2rem; width: 100%; max-width: 560px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
-    h1 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
-    p  { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
-    label { font-size: 13px; color: #5f5e5a; display: block; margin-bottom: 5px; margin-top: 14px; }
-    textarea { width: 100%; font-size: 13px; font-family: monospace; border: 0.5px solid rgba(0,0,0,0.18); border-radius: 8px; padding: 10px 12px; outline: none; min-height: 220px; resize: vertical; background: #f5f5f3; color: #1a1a18; }
-    textarea:focus { border-color: #2563eb; }
-    .btn { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: 1rem; width: 100%; }
-    .btn:hover { opacity: 0.88; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .log { margin-top: 1rem; font-size: 12px; font-family: monospace; background: #f5f5f3; border-radius: 8px; padding: 10px 12px; max-height: 180px; overflow-y: auto; color: #5f5e5a; display: none; }
-    .log.show { display: block; }
-    .ok  { color: #15803d; }
-    .err { color: #b91c1c; }
-    .info { color: #1d4ed8; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Import Students — Mr. Boules</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink-950: #0c1622; --ink-900: #0f1b2e; --ink-800: #16243a;
+            --chalk-teal: #4fa88a; --amber: #c2762e; --rust: #b5482f;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--ink-900);
+            color: #f3ede0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            max-width: 820px;
+            width: 100%;
+            background: #1a2333;
+            border-radius: 20px;
+            padding: 40px 36px;
+            box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+        }
+        .subtitle {
+            color: #a0b0d0;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .format-box {
+            background: #0f1827;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13.5px;
+            line-height: 1.65;
+            color: #c8d0e0;
+        }
+        textarea {
+            width: 100%;
+            min-height: 260px;
+            background: #0f1827;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 18px;
+            color: #e0e8f0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            resize: vertical;
+            line-height: 1.7;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: var(--chalk-teal);
+            box-shadow: 0 0 0 3px rgba(79,168,138,0.2);
+        }
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin: 24px 0;
+        }
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--chalk-teal);
+            color: #0f1b2e;
+            border: none;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #5ec1a0;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #c0d0e0;
+        }
+        #log {
+            background: #0a1322;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 280px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            display: none;
+        }
+        #log.show { display: block; }
+        .entry { padding: 3px 0; }
+        .entry.ok { color: #6fcf97; }
+        .entry.err { color: #f28b82; }
+        .entry.info { color: #88b8ff; }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #8899bb;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        .back-link:hover { color: #c0d0e0; }
+    </style>
 </head>
 <body>
+
 <div class="card">
-  <h1>📋 Import Students</h1>
-  <p>Paste your student list below — one student per line in the format:<br><strong>email,ID</strong><br>This is a one-time setup tool. Keep this file private.</p>
+    <div class="header">
+        <i class="ti ti-upload" style="font-size:32px;color:#4fa88a"></i>
+        <h1>Import Students</h1>
+    </div>
+    <p class="subtitle">
+        One student per line in format: <strong>email,ID,subject1,subject2,...</strong><br>
+        Valid subjects: <strong>aspure</strong>, <strong>a2pure</strong>, <strong>mechanics</strong>, <strong>statistics</strong>
+    </p>
 
-  <label>Student list (email,ID — one per line)</label>
-  <textarea id="input" ></textarea>
+    <div class="format-box">
+        <span style="color:#6a7a9c"># Example</span><br>
+        ahmed@gmail.com,A0A56,aspure,mechanics<br>
+        sara@gmail.com,A6B32,aspure,statistics,a2pure
+    </div>
 
-  <button class="btn" id="import-btn" onclick="doImport()">Import Students to Firebase</button>
-  <div class="log" id="log"></div>
+    <textarea id="input" placeholder="Paste your student list here...">ahmed@gmail.com,A0A56,aspure,mechanics
+sara@gmail.com,A6B32,aspure,statistics
+omar@gmail.com,A1C45,aspure,mechanics,a2pure,statistics
+lina@gmail.com,A8F12,a2pure,statistics</textarea>
+
+    <div class="actions">
+        <button class="btn btn-primary" id="import-btn"><i class="ti ti-upload"></i> Import Students</button>
+        <button class="btn btn-secondary" id="clear-btn"><i class="ti ti-trash"></i> Clear Log</button>
+    </div>
+
+    <div id="log"></div>
+
+    <a href="index.html" class="back-link"><i class="ti ti-arrow-left"></i> Back to Hub</a>
 </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBGSbYUWWZQ_4zt_0JIJ-bc4tPZVfbhmt8",
-    authDomain: "mr-boules.firebaseapp.com",
-    projectId: "mr-boules",
-    storageBucket: "mr-boules.firebasestorage.app",
-    messagingSenderId: "263455567927",
-    appId: "1:263455567927:web:8fc3167510b775cad88fb2"
-  };
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBGSbYUWWZQ_4zt_0JIJ-bc4tPZVfbhmt8",
+        authDomain: "mr-boules.firebaseapp.com",
+        projectId: "mr-boules",
+        storageBucket: "mr-boules.firebasestorage.app",
+        messagingSenderId: "263455567927",
+        appId: "1:263455567927:web:8fc3167510b775cad88fb2"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-  function log(msg, type = '') {
-    const el = document.getElementById('log');
-    el.classList.add('show');
-    el.innerHTML += `<div class="${type}">${msg}</div>`;
-    el.scrollTop = el.scrollHeight;
-  }
-
-  function validateID(id) {
-    if (!id || id.length !== 5) return false;
-    if (!/^[A-Za-z]/.test(id)) return false;
-    const letters = id.replace(/[^A-Za-z]/g, '').length;
-    const numbers = id.replace(/[^0-9]/g, '').length;
-    return letters === 2 && numbers === 3;
-  }
-
-  window.doImport = async () => {
-    const btn   = document.getElementById('import-btn');
-    const input = document.getElementById('input').value.trim();
+    const inputEl = document.getElementById('input');
     const logEl = document.getElementById('log');
-    logEl.innerHTML = '';
-    logEl.classList.add('show');
+    const importBtn = document.getElementById('import-btn');
+    const clearBtn = document.getElementById('clear-btn');
 
-    if (!input) { log('⚠️ Nothing to import.', 'err'); return; }
-
-    const lines = input.split('\n').map(l => l.trim()).filter(Boolean);
-    btn.disabled = true;
-    btn.textContent = 'Importing...';
-    log(`Starting import of ${lines.length} students...`, 'info');
-
-    let success = 0, errors = 0;
-
-    for (const line of lines) {
-      const parts = line.split(',');
-      if (parts.length !== 2) { log(`✗ Skipped (bad format): ${line}`, 'err'); errors++; continue; }
-      const email = parts[0].trim().toLowerCase();
-      const id    = parts[1].trim().toUpperCase();
-
-      if (!email.includes('@')) { log(`✗ Invalid email: ${email}`, 'err'); errors++; continue; }
-      if (!validateID(id)) { log(`✗ Invalid ID format: ${id} (must be 5 chars, 2 letters, 3 numbers, start with letter)`, 'err'); errors++; continue; }
-
-      try {
-        await setDoc(doc(db, 'students', email), { id, email, createdAt: new Date().toISOString() });
-        log(`✓ ${email} — ${id}`, 'ok');
-        success++;
-      } catch(e) {
-        log(`✗ Failed to save ${email}: ${e.message}`, 'err');
-        errors++;
-      }
+    function log(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = `entry ${type}`;
+        entry.textContent = message;
+        logEl.appendChild(entry);
+        logEl.scrollTop = logEl.scrollHeight;
     }
 
-    log(`──────────────────`, '');
-    log(`Done! ${success} imported, ${errors} errors.`, success > 0 ? 'ok' : 'err');
-    btn.disabled = false;
-    btn.textContent = 'Import Students to Firebase';
-  };
+    function validateID(id) {
+        return /^[A-Z][A-Z0-9]{4}$/.test(id);
+    }
+
+    const VALID_SUBJECTS = ['aspure', 'a2pure', 'mechanics', 'statistics'];
+
+    async function doImport() {
+        const input = inputEl.value.trim();
+        logEl.innerHTML = '';
+        logEl.classList.add('show');
+
+        if (!input) {
+            log('Nothing to import.', 'err');
+            return;
+        }
+
+        const lines = input.split('\n').map(l => l.trim()).filter(Boolean);
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<i class="ti ti-loader-2"></i> Importing...';
+
+        log(`Starting import of ${lines.length} students...`, 'info');
+
+        let success = 0;
+        let errors = 0;
+
+        for (const line of lines) {
+            const parts = line.split(',').map(x => x.trim());
+            if (parts.length < 3) {
+                log(`Bad format: ${line}`, 'err');
+                errors++;
+                continue;
+            }
+
+            const email = parts[0].toLowerCase();
+            const id = parts[1].toUpperCase();
+
+            if (!email.includes('@')) {
+                log(`Invalid email: ${email}`, 'err');
+                errors++;
+                continue;
+            }
+            if (!validateID(id)) {
+                log(`Invalid ID: ${id}`, 'err');
+                errors++;
+                continue;
+            }
+
+            const subjects = parts.slice(2).map(s => s.toLowerCase()).filter(s => VALID_SUBJECTS.includes(s));
+
+            if (subjects.length === 0) {
+                log(`${email} has no valid subjects`, 'err');
+                errors++;
+                continue;
+            }
+
+            try {
+                const docRef = db.collection('students').doc(email);
+                await docRef.set({
+                    email,
+                    id,
+                    subjects: [...new Set(subjects)],
+                    createdAt: new Date().toISOString()
+                });
+                log(`✓ ${email} → ${subjects.join(', ')}`, 'ok');
+                success++;
+            } catch (e) {
+                log(`✗ Failed ${email}: ${e.message}`, 'err');
+                errors++;
+            }
+        }
+
+        log('──────────────────', 'info');
+        log(`Done! ${success} imported, ${errors} errors.`, success > 0 ? 'ok' : 'err');
+
+        importBtn.disabled = false;
+        importBtn.innerHTML = '<i class="ti ti-upload"></i> Import Students';
+    }
+
+    importBtn.addEventListener('click', doImport);
+    clearBtn.addEventListener('click', () => { logEl.innerHTML = ''; logEl.classList.remove('show'); });
+
+    console.log('Import tool ready (using mr-boules project)');
 </script>
 </body>
 </html>
