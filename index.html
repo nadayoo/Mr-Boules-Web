@@ -22,7 +22,7 @@
       --rust: #b5482f; --rust-dim: rgba(181,72,47,0.14); --rust-line: rgba(181,72,47,0.4);
       --sage: #5c8a52; --sage-dim: rgba(92,138,82,0.14);
       --violet: #6d4fc2; --violet-dim: rgba(109,79,194,0.14); --violet-line: rgba(109,79,194,0.4);
-      --radius: 6px; --radius-lg: 12px;
+      --radius: 8px; --radius-lg: 16px;
       --font-serif: 'Source Serif 4', Georgia, serif;
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
@@ -65,7 +65,7 @@
 
     /* ── HUB ── */
     #hub-screen { display: none; position: relative; z-index: 1; }
-    .page { max-width: 880px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .page { max-width: 1180px; margin: 0 auto; padding: 2.5rem 2.5rem 4rem; }
     .hub-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 16px; padding-bottom: 1.75rem; border-bottom: 1px solid var(--ink-line); }
     .hub-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--chalk-teal); margin-bottom: 6px; }
     .hub-title { font-family: var(--font-serif); font-size: 26px; font-weight: 600; color: var(--ink-text); line-height: 1.15; letter-spacing: -0.01em; }
@@ -84,7 +84,7 @@
 
     /* ── SUBJECT TABS ── */
     .subject-tabs { display: flex; gap: 8px; margin-bottom: 1.75rem; flex-wrap: wrap; }
-    .subject-tab { flex: 1; min-width: 110px; padding: 12px 14px; border-radius: var(--radius-lg); border: 1px solid var(--ink-line-strong); background: var(--ink-800); cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px; transition: all 0.18s; position: relative; overflow: hidden; }
+    .subject-tab { flex: 1; min-width: 135px; padding: 14px 16px; border-radius: var(--radius-lg); border: 1px solid var(--ink-line-strong); background: var(--ink-800); cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px; transition: all 0.18s; position: relative; overflow: hidden; }
     .subject-tab::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; transition: background 0.18s; }
     .subject-tab:hover { background: var(--ink-700); }
     .subject-tab.active { background: var(--paper); border-color: transparent; }
@@ -118,8 +118,7 @@
     .add-btn:hover { background: var(--chalk-teal); color: var(--ink-950); }
     .admin-mode .add-btn { display: flex; }
 
-    .card { background: var(--ink-800); border: 1px solid var(--ink-line); border-radius: var(--radius-lg); padding: 1.1rem 1.3rem; margin-bottom: 10px; transition: border-color 0.15s; }
-    .card:hover { border-color: var(--ink-line-strong); }
+    .card { background: var(--ink-800); border: 1px solid var(--ink-line); border-radius: var(--radius-lg); padding: 1.4rem 1.6rem; margin-bottom: 14px; transition: border-color 0.15s; }
     .card-row { display: flex; align-items: flex-start; gap: 13px; }
     .card-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .card-icon i { font-size: 18px; }
@@ -265,18 +264,20 @@
   const ADMIN_EMAIL = "nada@admin.com";
   const ADMIN_ID    = "ADMIN";
 
-  const ALL_SUBJECTS = ['aspure','a2pure','mechanics','statistics'];
+  const ALL_SUBJECTS = ['aspure','a2pure','mechanics','statistics','olcam','oledx'];
   const SUBJECT_META = {
     aspure:     { label: 'AS Pure',    icon: 'ti-math-function'  },
     a2pure:     { label: 'A2 Pure',    icon: 'ti-math-function'  },
     mechanics:  { label: 'Mechanics',  icon: 'ti-rocket'         },
-    statistics: { label: 'Statistics', icon: 'ti-chart-histogram' }
+    statistics: { label: 'Statistics', icon: 'ti-chart-histogram' },
+    olcam:      { label: 'OL Cambridge',  icon: 'ti-math' },
+    oledx:      { label: 'OL Edexcel',    icon: 'ti-math' }
   };
   const DAY_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const SECTIONS  = ['announcements','recordings','homework','notes','schedule'];
   const SECTION_META = {
     announcements: { label: 'Announcements',            icon: 'ti-speakerphone', addLabel: 'New announcement' },
-    recordings:    { label: 'Lecture Recordings',        icon: 'ti-video',        addLabel: 'Add recording'    },
+    recordings:    { label: 'Recordings',               icon: 'ti-video',        addLabel: 'Add recording'    },
     homework:      { label: 'Homework & Assignments',    icon: 'ti-notebook',     addLabel: 'Add homework'     },
     notes:         { label: 'Lecture Notes & Resources', icon: 'ti-file-text',    addLabel: 'Add notes'        },
     schedule:      { label: 'Weekly Schedule',           icon: 'ti-calendar',     addLabel: 'Add schedule entry'}

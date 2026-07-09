@@ -144,19 +144,20 @@
     </div>
     <p class="subtitle">
         One student per line in format: <strong>email,ID,subject1,subject2,...</strong><br>
-        Valid subjects: <strong>aspure</strong>, <strong>a2pure</strong>, <strong>mechanics</strong>, <strong>statistics</strong>
+        Valid subjects: <strong>aspure</strong>, <strong>a2pure</strong>, <strong>mechanics</strong>, <strong>statistics</strong>, <strong>olcam</strong>, <strong>oledx</strong>
     </p>
 
     <div class="format-box">
         <span style="color:#6a7a9c"># Example</span><br>
         ahmed@gmail.com,A0A56,aspure,mechanics<br>
-        sara@gmail.com,A6B32,aspure,statistics,a2pure
+        sara@gmail.com,A6B32,aspure,statistics,a2pure<br>
+        nody@gmail.com,G9F12,olcam
     </div>
 
     <textarea id="input" placeholder="Paste your student list here...">ahmed@gmail.com,A0A56,aspure,mechanics
 sara@gmail.com,A6B32,aspure,statistics
-omar@gmail.com,A1C45,aspure,mechanics,a2pure,statistics
-lina@gmail.com,A8F12,a2pure,statistics</textarea>
+nody@gmail.com,G9F12,olcam
+omar@gmail.com,A1C45,olcam,oledx,mechanics</textarea>
 
     <div class="actions">
         <button class="btn btn-primary" id="import-btn"><i class="ti ti-upload"></i> Import Students</button>
@@ -201,7 +202,7 @@ lina@gmail.com,A8F12,a2pure,statistics</textarea>
         return /^[A-Z][A-Z0-9]{4}$/.test(id);
     }
 
-    const VALID_SUBJECTS = ['aspure', 'a2pure', 'mechanics', 'statistics'];
+    const VALID_SUBJECTS = ['aspure', 'a2pure', 'mechanics', 'statistics', 'olcam', 'oledx'];
 
     async function doImport() {
         const input = inputEl.value.trim();
@@ -278,7 +279,7 @@ lina@gmail.com,A8F12,a2pure,statistics</textarea>
     importBtn.addEventListener('click', doImport);
     clearBtn.addEventListener('click', () => { logEl.innerHTML = ''; logEl.classList.remove('show'); });
 
-    console.log('Import tool ready (using mr-boules project)');
+    console.log('Import tool ready');
 </script>
 </body>
 </html>
