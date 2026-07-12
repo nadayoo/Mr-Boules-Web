@@ -1,11 +1,12 @@
-import { db, ADMIN_EMAIL, ADMIN_ID, ALL_SUBJECTS, toast } from './config.js';
+import { db, ADMIN_EMAIL, ADMIN_ID, ALL_SUBJECTS, toast } from './config.v5.js';
 import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { buildHub, startListeners, loadStudentProgress } from './hub.js';
+import { buildHub, startListeners, loadStudentProgress } from './hub.v5.js';
 
 export let state = {
   isAdmin: false,
   userSubjects: [],
-  studentProgress: {}
+  studentProgress: {},
+  userEmail: ''
 };
 
 export function validateID(id) {
@@ -30,6 +31,7 @@ export async function doLogin() {
 
   if (email === ADMIN_EMAIL.toLowerCase() && id === ADMIN_ID) {
     state.isAdmin      = true;
+    state.userEmail    = email;
     state.userSubjects = ALL_SUBJECTS;
     await enterHub(email);
     return;
@@ -47,6 +49,7 @@ export async function doLogin() {
     const snap = await getDoc(doc(db, 'students', email));
     if (snap.exists() && snap.data().id === id) {
       state.isAdmin = false;
+      state.userEmail = email;
       const raw = snap.data().subjects || ALL_SUBJECTS;
       state.userSubjects = ALL_SUBJECTS.filter(s => raw.includes(s));
       if (state.userSubjects.length === 0) state.userSubjects = ALL_SUBJECTS;
@@ -80,7 +83,7 @@ export async function enterHub(email) {
 }
 
 export function doLogout() {
-  state.isAdmin = false; state.userSubjects = []; state.studentProgress = {};
+  state.isAdmin = false; state.userSubjects = []; state.studentProgress = {}; state.userEmail = '';
   document.getElementById('hub-screen').style.display   = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-email').value = '';

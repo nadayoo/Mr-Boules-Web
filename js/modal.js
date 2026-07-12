@@ -1,8 +1,8 @@
-import { db, storage, SUBJECT_META, SECTION_META, toast } from './config.js';
+import { db, storage, SUBJECT_META, SECTION_META, toast } from './config.v5.js';
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-export function openAdd(subject, section ) {
+export function openAdd(subject, section) {
   let fields = '';
   if (section === 'schedule') {
     fields = `
@@ -14,6 +14,22 @@ export function openAdd(subject, section ) {
         <div style="flex:1;"><label>Group #</label><input type="text" id="f-group" placeholder="e.g. G1" /></div>
         <div style="flex:1;"><label>Lesson #</label><input type="text" id="f-lesson" placeholder="e.g. L12" /></div>
       </div>`;
+  } else if (section === 'marks') {
+    fields = `
+      <label>Quiz Title</label><input type="text" id="m-quiz-title" placeholder="e.g. Quiz 1 - Pure Math" />
+      <label>Upload CSV <span style="text-transform:none;color:var(--paper-text-faint)">(Format: email,mark)</span></label>
+      <input type="file" id="m-csv-file" accept=".csv,text/csv" />
+      <p style="font-size:11px; color:var(--paper-text-faint); margin-top:10px;">Create an Excel file with two columns (Email and Mark), then save as CSV.</p>`;
+    
+    const subjLabel = SUBJECT_META[subject]?.label || subject;
+    document.getElementById('modal').innerHTML = `
+      <h2>Manage Marks <span>— ${subjLabel}</span></h2>${fields}
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" id="m-upload-btn" onclick="window.handleMarksUpload('${subject}')">Upload Marks</button>
+      </div>`;
+    openModal();
+    return;
   } else {
     let fileInput = '';
     if (section === 'homework') {
@@ -33,6 +49,7 @@ export function openAdd(subject, section ) {
       ${section==='announcements'?`<label>Badge</label><select id="f-badge"><option value="">None</option><option value="new">New</option><option value="important">Important</option></select><label>Pin to top?</label><select id="f-pin"><option value="">No</option><option value="yes">Yes</option></select>`:''}
       ${section==='homework'?`<label>Status</label><select id="f-badge"><option value="due">Due</option><option value="done">Done</option></select>`:''}`;
   }
+  
   const subjLabel = SUBJECT_META[subject]?.label || subject;
   document.getElementById('modal').innerHTML = `
     <h2>${SECTION_META[section].addLabel} <span>— ${subjLabel}</span></h2>${fields}

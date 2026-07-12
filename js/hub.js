@@ -1,8 +1,8 @@
-import { db, SUBJECT_META, SECTIONS, SECTION_META, toast } from './config.js';
+import { db, SUBJECT_META, SECTIONS, SECTION_META, toast } from './config.v5.js';
 import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state } from './auth.js';
-import { RENDERERS } from './render.js';
-import { openAdd } from './modal.js';
+import { state } from './auth.v5.js';
+import { RENDERERS } from './render.v5.js';
+import { openAdd } from './modal.v5.js';
 
 export function buildHub(subjects) {
   const tabsEl   = document.getElementById('subject-tabs');
@@ -39,7 +39,7 @@ export function buildSubjectPanel(subject) {
     <div class="section ${i===0?'active':''}" data-subject="${subject}" data-section-panel="${s}">
       <div class="section-header">
         <span class="section-title">${SECTION_META[s].label}</span>
-        <button class="add-btn" onclick="openAdd('${subject}','${s}')"><i class="ti ti-plus"></i> Add</button>
+        <button class="add-btn" onclick="openAdd('${subject}','${s}')"><i class="ti ti-plus"></i> ${s==='marks'?'Manage':'Add'}</button>
       </div>
       <div id="list-${subject}-${s}"><div class="loading">Loading…</div></div>
     </div>`).join('');

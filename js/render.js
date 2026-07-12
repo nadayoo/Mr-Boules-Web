@@ -1,5 +1,5 @@
-import { esc, DAY_ORDER, toast, db } from './config.js';
-import { state } from './auth.js';
+import { esc, DAY_ORDER, toast, db } from './config.v5.js';
+import { state } from './auth.v5.js';
 import { doc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 export function delBtn(subject, section, id) {
@@ -117,13 +117,50 @@ export function renderSchedule(subject, data) {
   </div>`;
 }
 
-export const RENDERERS = { announcements: renderAnnouncements, recordings: renderRecordings, homework: renderHomework, notes: renderNotes, schedule: renderSchedule };
+export function renderMarks(subject, data) {
+  const el = document.getElementById(`list-${subject}-marks`);
+  if (!el) return;
+  
+  // If student, only show their marks
+  const filteredData = state.isAdmin ? data : data.filter(d => d.email === state.userEmail);
+
+  if (!filteredData.length) { 
+    el.innerHTML = `<div class="empty"><i class="ti ti-chart-bar"></i><p>No marks posted yet.</p></div>`; 
+    return; 
+  }
+
+  el.innerHTML = `
+    <div class="marks-table-wrap">
+      <table class="marks-table">
+        <thead>
+          <tr>
+            <th>Quiz / Exam</th>
+            ${state.isAdmin ? '<th>Student Email</th>' : ''}
+            <th>Mark</th>
+            ${state.isAdmin ? '<th>Action</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredData.map(item => `
+            <tr>
+              <td>${esc(item.quiz)}</td>
+              ${state.isAdmin ? `<td>${esc(item.email)}</td>` : ''}
+              <td><span class="mark-badge">${esc(item.mark)}</span></td>
+              ${state.isAdmin ? `<td>${delBtn(subject, 'marks', item._id)}</td>` : ''}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+export const RENDERERS = { announcements: renderAnnouncements, recordings: renderRecordings, homework: renderHomework, notes: renderNotes, schedule: renderSchedule, marks: renderMarks };
 
 window.toggleHomework = async (homeworkId, isDone) => {
   if (state.isAdmin) return;
-  const studentEmail = document.getElementById('user-email-display').textContent;
+  const studentEmail = state.userEmail;
   
-  // Instant UI feedback
   const card = document.getElementById(`hw-card-${homeworkId}`);
   if (card) card.classList.toggle('done-card', isDone);
   
@@ -139,7 +176,6 @@ window.toggleHomework = async (homeworkId, isDone) => {
   } catch(e) {
     console.error(e);
     toast('Error updating status', 'ti-alert-triangle');
-    // Revert UI on error
     if (card) card.classList.toggle('done-card', !isDone);
   }
 };
