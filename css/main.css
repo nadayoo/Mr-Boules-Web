@@ -170,3 +170,18 @@ a { color: inherit; } button { font-family: inherit; }
   .subject-tab { min-width: 90px; padding: 10px; } .subject-tab-label { font-size: 12px; }
   .subject-tab-icon { width: 28px; height: 28px; } .hub-header { align-items: center; }
 }
+
+/* ── NEW ENHANCEMENTS ── */
+.img-preview { margin-top: 12px; margin-bottom: 8px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--ink-line); max-width: 300px; cursor: pointer; transition: transform 0.15s; }
+.img-preview:hover { transform: scale(1.02); }
+.img-preview img { width: 100%; height: auto; display: block; }
+
+.check-label { font-family: var(--font-mono); font-size: 11px; color: var(--chalk-teal); cursor: pointer; display: flex; align-items: center; gap: 5px; margin-left: auto; background: var(--chalk-teal-dim); padding: 3px 8px; border-radius: 12px; border: 1px solid var(--chalk-teal-line); }
+.check-label input { cursor: pointer; }
+
+.done-card { border-left: 4px solid var(--sage); opacity: 0.8; }
+.done-card .card-icon.hw { background: var(--sage-dim); }
+.done-card .card-icon.hw i { color: var(--sage); }
+
+.sched-meta { margin-top: 6px; display: flex; gap: 6px; }
+.sched-meta span { font-family: var(--font-mono); font-size: 10px; background: var(--ink-700); color: var(--ink-text-dim); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--ink-line); }

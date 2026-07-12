@@ -1,5 +1,5 @@
 import { db, SUBJECT_META, SECTIONS, SECTION_META, toast } from './config.js';
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state } from './auth.js';
 import { RENDERERS } from './render.js';
 import { openAdd } from './modal.js';
@@ -49,6 +49,21 @@ export function buildSubjectPanel(subject) {
 export function setSubject(subject) {
   document.querySelectorAll('.subject-tab').forEach(t => t.classList.toggle('active', t.dataset.subject === subject));
   document.querySelectorAll('.subject-panel').forEach(p => p.classList.toggle('active', p.dataset.subjectPanel === subject));
+}
+
+export async function loadStudentProgress(email) {
+  state.studentProgress = {};
+  if (state.isAdmin) return;
+  try {
+    const q = query(collection(db, 'progress'));
+    const snap = await getDocs(q);
+    snap.forEach(d => {
+      if (d.id.startsWith(email + '_')) {
+        const homeworkId = d.id.replace(email + '_', '');
+        state.studentProgress[homeworkId] = true;
+      }
+    });
+  } catch(e) { console.error("Error loading progress", e); }
 }
 
 export function startListeners() {

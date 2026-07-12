@@ -1,10 +1,11 @@
 import { db, ADMIN_EMAIL, ADMIN_ID, ALL_SUBJECTS, toast } from './config.js';
 import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { buildHub, startListeners } from './hub.js';
+import { buildHub, startListeners, loadStudentProgress } from './hub.js';
 
 export let state = {
   isAdmin: false,
-  userSubjects: []
+  userSubjects: [],
+  studentProgress: {}
 };
 
 export function validateID(id) {
@@ -30,7 +31,7 @@ export async function doLogin() {
   if (email === ADMIN_EMAIL.toLowerCase() && id === ADMIN_ID) {
     state.isAdmin      = true;
     state.userSubjects = ALL_SUBJECTS;
-    enterHub(email);
+    await enterHub(email);
     return;
   }
 
@@ -49,7 +50,7 @@ export async function doLogin() {
       const raw = snap.data().subjects || ALL_SUBJECTS;
       state.userSubjects = ALL_SUBJECTS.filter(s => raw.includes(s));
       if (state.userSubjects.length === 0) state.userSubjects = ALL_SUBJECTS;
-      enterHub(email);
+      await enterHub(email);
     } else {
       showError("Couldn't match that email and ID. Double-check, or contact the assistants.");
     }
@@ -59,7 +60,7 @@ export async function doLogin() {
   btn.innerHTML = '<i class="ti ti-arrow-right"></i> Sign in';
 }
 
-export function enterHub(email) {
+export async function enterHub(email) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('hub-screen').style.display   = 'block';
   document.getElementById('user-email-display').textContent = email;
@@ -71,13 +72,15 @@ export function enterHub(email) {
   } else {
     badge.textContent = 'Student'; badge.className = 'role-badge student';
   }
+  
+  await loadStudentProgress(email);
   buildHub(state.userSubjects);
   startListeners();
   toast('Welcome back', 'ti-hand-stop');
 }
 
 export function doLogout() {
-  state.isAdmin = false; state.userSubjects = [];
+  state.isAdmin = false; state.userSubjects = []; state.studentProgress = {};
   document.getElementById('hub-screen').style.display   = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-email').value = '';

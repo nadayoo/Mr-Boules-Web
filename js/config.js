@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyBGSbYUWWZQ_4zt_0JIJ-bc4tPZVfbhmt8",
@@ -12,6 +13,7 @@ export const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const db  = getFirestore(app);
+export const storage = getStorage(app);
 
 export const ADMIN_EMAIL = "nada@admin.com";
 export const ADMIN_ID    = "ADMIN";
