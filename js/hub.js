@@ -1,8 +1,8 @@
-import { db, SUBJECT_META, SECTIONS, SECTION_META, toast } from './config.v5.js';
+import { db, SUBJECT_META, SECTIONS, SECTION_META, toast } from './config.js';
 import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state } from './auth.v5.js';
-import { RENDERERS } from './render.v5.js';
-import { openAdd } from './modal.v5.js';
+import { state } from './auth.js';
+import { RENDERERS } from './render.js';
+import { openAdd } from './modal.js';
 
 export function buildHub(subjects) {
   const tabsEl   = document.getElementById('subject-tabs');

@@ -1,6 +1,6 @@
-import { db, ADMIN_EMAIL, ADMIN_ID, ALL_SUBJECTS, toast } from './config.v5.js';
+import { db, ADMIN_EMAIL, ADMIN_ID, ALL_SUBJECTS, toast } from './config.js';
 import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { buildHub, startListeners, loadStudentProgress } from './hub.v5.js';
+import { buildHub, startListeners, loadStudentProgress } from './hub.js';
 
 export let state = {
   isAdmin: false,

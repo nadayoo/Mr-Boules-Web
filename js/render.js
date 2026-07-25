@@ -1,5 +1,5 @@
-import { esc, DAY_ORDER, toast, db } from './config.v5.js';
-import { state } from './auth.v5.js';
+import { esc, DAY_ORDER, toast, db } from './config.js';
+import { state } from './auth.js';
 import { doc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 export function delBtn(subject, section, id) {
@@ -84,7 +84,7 @@ export function renderNotes(subject, data) {
       <div class="card-row">
         <div class="card-icon note"><i class="ti ti-file-text"></i></div>
         <div class="card-body">
-          <div class="card-title">${esc(item.title)}</div>
+          <div class="card-title">${esc(item.title)} ${item.chapter?`<span class="badge chapter">${esc(item.chapter)}</span>`:''}</div>
           <div class="card-meta">${esc(item.date)}</div>
           ${item.desc?`<div class="card-desc">${esc(item.desc)}</div>`:''}
           ${item.link?`<a class="card-link" href="${esc(item.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open file</a>`:''}
@@ -107,8 +107,7 @@ export function renderSchedule(subject, data) {
       ${grouped[day].map(item=>`
         <div class="sched-item">
           <div>
-            <div class="sched-topic">${esc(item.topic)}</div>
-            <div class="sched-time">${esc(item.time)}</div>
+            <div class="sched-topic">${esc(item.time)}</div>
             ${(item.group || item.lesson) ? `<div class="sched-meta">${item.group ? `<span>${esc(item.group)}</span>` : ''} ${item.lesson ? `<span>${esc(item.lesson)}</span>` : ''}</div>` : ''}
           </div>
           ${delBtn(subject,'schedule',item._id)}

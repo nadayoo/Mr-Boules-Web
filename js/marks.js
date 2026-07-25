@@ -1,4 +1,4 @@
-import { db, toast } from './config.v5.js';
+import { db, toast } from './config.js';
 import { collection, doc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 export async function processMarksCSV(subject, quizTitle, csvText) {

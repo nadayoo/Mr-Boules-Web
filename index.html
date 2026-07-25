@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/main.v5.css">
+  <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
 <div class="grid-texture"></div>
@@ -57,10 +57,10 @@
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
-<script type="module" src="js/auth.v5.js"></script>
+<script type="module" src="js/auth.js"></script>
 <script type="module">
-  import { doLogin } from './js/auth.v5.js';
-  import './js/marks.v5.js';
+  import { doLogin } from './js/auth.js';
+  import './js/marks.js';
   document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-id').focus(); });
   document.getElementById('login-id').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 </script>

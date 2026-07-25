@@ -127,6 +127,7 @@ a { color: inherit; } button { font-family: inherit; }
 .badge.important { background: var(--amber-dim);      color: var(--amber);      }
 .badge.due       { background: var(--rust-dim);       color: var(--rust);       }
 .badge.done      { background: var(--sage-dim);       color: var(--sage);       }
+.badge.chapter   { background: var(--chalk-teal-dim); color: var(--chalk-teal); }
 .del-btn { background: transparent; border: none; color: var(--ink-text-faint); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; flex-shrink: 0; transition: background 0.15s, color 0.15s; }
 .del-btn:hover { background: var(--rust-dim); color: var(--rust); }
 .del-btn i { font-size: 16px; }

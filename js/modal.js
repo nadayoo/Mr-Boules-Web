@@ -1,4 +1,4 @@
-import { db, storage, SUBJECT_META, SECTION_META, toast } from './config.v5.js';
+import { db, storage, SUBJECT_META, SECTION_META, toast } from './config.js';
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -9,7 +9,6 @@ export function openAdd(subject, section) {
       <label>Day</label>
       <select id="f-day"><option>Sunday</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option></select>
       <label>Time</label><input type="text" id="f-time" placeholder="e.g. 10:00 AM" />
-      <label>Topic / Type</label><input type="text" id="f-topic" placeholder="e.g. Lecture, Office Hours" />
       <div style="display:flex; gap:10px; margin-top: 10px;">
         <div style="flex:1;"><label>Group #</label><input type="text" id="f-group" placeholder="e.g. G1" /></div>
         <div style="flex:1;"><label>Lesson #</label><input type="text" id="f-lesson" placeholder="e.g. L12" /></div>
@@ -42,6 +41,7 @@ export function openAdd(subject, section) {
 
     fields = `
       <label>Title</label><input type="text" id="f-title" placeholder="Enter title…" />
+      ${section==='notes'?`<label>Chapter Number</label><input type="text" id="f-chapter" placeholder="e.g. Chapter 4" />`:''}
       <label>Description <span style="text-transform:none;color:var(--paper-text-faint)">(optional)</span></label><textarea id="f-desc" placeholder="Add details…"></textarea>
       <label>${section==='homework'?'Due date':'Date'}</label>
       <input type="text" id="f-date" placeholder="${section==='homework'?'e.g. Due: Jul 5':'e.g. Jun 28'}" />
@@ -69,17 +69,17 @@ export async function submitAdd(subject, section) {
     if (section === 'schedule') {
       data.day    = document.getElementById('f-day').value;
       data.time   = document.getElementById('f-time').value || '—';
-      data.topic  = document.getElementById('f-topic').value || 'Class';
       data.group  = document.getElementById('f-group').value || '';
       data.lesson = document.getElementById('f-lesson').value || '';
     } else {
       const title = document.getElementById('f-title')?.value?.trim();
       if (!title) { document.getElementById('f-title').focus(); btn.disabled=false; btn.textContent='Add'; return; }
-      data.title  = title;
-      data.desc   = document.getElementById('f-desc')?.value?.trim()  || '';
-      data.date   = document.getElementById('f-date')?.value?.trim()   || 'Today';
-      data.badge  = document.getElementById('f-badge')?.value          || '';
-      data.pinned = document.getElementById('f-pin')?.value === 'yes';
+      data.title   = title;
+      data.chapter = document.getElementById('f-chapter')?.value?.trim() || '';
+      data.desc    = document.getElementById('f-desc')?.value?.trim()  || '';
+      data.date    = document.getElementById('f-date')?.value?.trim()   || 'Today';
+      data.badge   = document.getElementById('f-badge')?.value          || '';
+      data.pinned  = document.getElementById('f-pin')?.value === 'yes';
       if (fileEl && fileEl.files[0]) {
         const file = fileEl.files[0];
         let path = section === 'homework' ? `homework-images/${subject}/${Date.now()}_${file.name}` : `pdfs/${subject}/${Date.now()}_${file.name}`;
