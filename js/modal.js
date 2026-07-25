@@ -19,7 +19,7 @@ export function openAdd(subject, section) {
       <label>Upload CSV <span style="text-transform:none;color:var(--paper-text-faint)">(Format: email,mark)</span></label>
       <input type="file" id="m-csv-file" accept=".csv,text/csv" />
       <p style="font-size:11px; color:var(--paper-text-faint); margin-top:10px;">Create an Excel file with two columns (Email and Mark), then save as CSV.</p>`;
-    
+
     const subjLabel = SUBJECT_META[subject]?.label || subject;
     document.getElementById('modal').innerHTML = `
       <h2>Manage Marks <span>— ${subjLabel}</span></h2>${fields}
@@ -34,7 +34,10 @@ export function openAdd(subject, section) {
     if (section === 'homework') {
       fileInput = `<label>Upload Image <span style="text-transform:none;color:var(--paper-text-faint)">(JPG, PNG, GIF, WebP)</span></label>
                    <input type="file" id="f-file" accept="image/jpeg,image/png,image/gif,image/webp" />`;
-    } else if (['recordings', 'notes'].includes(section)) {
+    } else if (section === 'recordings') {
+      fileInput = `<label>Link <span style="text-transform:none;color:var(--paper-text-faint)">(YouTube / Zoom / Drive)</span></label>
+                   <input type="url" id="f-link" placeholder="https://…" />`;
+    } else if (section === 'notes') {
       fileInput = `<label>Upload PDF</label>
                    <input type="file" id="f-file" accept="application/pdf" />`;
     }
@@ -49,7 +52,7 @@ export function openAdd(subject, section) {
       ${section==='announcements'?`<label>Badge</label><select id="f-badge"><option value="">None</option><option value="new">New</option><option value="important">Important</option></select><label>Pin to top?</label><select id="f-pin"><option value="">No</option><option value="yes">Yes</option></select>`:''}
       ${section==='homework'?`<label>Status</label><select id="f-badge"><option value="due">Due</option><option value="done">Done</option></select>`:''}`;
   }
-  
+
   const subjLabel = SUBJECT_META[subject]?.label || subject;
   document.getElementById('modal').innerHTML = `
     <h2>${SECTION_META[section].addLabel} <span>— ${subjLabel}</span></h2>${fields}
@@ -63,6 +66,7 @@ export function openAdd(subject, section) {
 export async function submitAdd(subject, section) {
   const btn = document.getElementById('submit-btn');
   const fileEl = document.getElementById('f-file');
+  const linkEl = document.getElementById('f-link');
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
     let data = { createdAt: serverTimestamp() };
@@ -80,14 +84,23 @@ export async function submitAdd(subject, section) {
       data.date    = document.getElementById('f-date')?.value?.trim()   || 'Today';
       data.badge   = document.getElementById('f-badge')?.value          || '';
       data.pinned  = document.getElementById('f-pin')?.value === 'yes';
-      if (fileEl && fileEl.files[0]) {
+
+      if (linkEl && linkEl.value.trim()) {
+        // Plain link (recordings)
+        data.link = linkEl.value.trim();
+      } else if (fileEl && fileEl.files[0]) {
+        // File upload (homework images, notes PDFs)
         const file = fileEl.files[0];
-        let path = section === 'homework' ? `homework-images/${subject}/${Date.now()}_${file.name}` : `pdfs/${subject}/${Date.now()}_${file.name}`;
+        const path = section === 'homework'
+          ? `homework-images/${subject}/${Date.now()}_${file.name}`
+          : `pdfs/${subject}/${Date.now()}_${file.name}`;
         btn.textContent = 'Uploading file…';
         const storageRef = ref(storage, path);
         const snapshot = await uploadBytes(storageRef, file);
         data.link = await getDownloadURL(snapshot.ref);
-      } else { data.link = ''; }
+      } else {
+        data.link = '';
+      }
     }
     await addDoc(collection(db, `${subject}_${section}`), data);
     closeModal(); toast('Added successfully');
