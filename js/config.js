@@ -15,8 +15,19 @@ export const app = initializeApp(firebaseConfig);
 export const db  = getFirestore(app);
 export const storage = getStorage(app);
 
-export const ADMIN_EMAIL = "nada@admin.com";
-export const ADMIN_ID    = "ADMIN";
+export const ADMINS = {
+  "nada@admin.com": "ADMIN",
+  "farah@admin.com": "ADMIN0",
+  "batoul@admin.com": "ADMIN1",
+  "farida@admin.com": "ADMIN2",
+  "jaidaa@admin.com": "ADMIN3",
+  "judy@admin.com": "ADMIN4",
+  "lobna@admin.com": "ADMIN5",
+  "menna@admin.com": "ADMIN6",
+  "parthinia@admin.com": "ADMIN7",
+  "judi@admin.com": "ADMIN8",
+  "mrboules@admin.com": "ADMIN0909"
+};
 
 export const ALL_SUBJECTS = ['aspure','a2pure','mechanics','statistics','olcam','oledx'];
 export const SUBJECT_META = {

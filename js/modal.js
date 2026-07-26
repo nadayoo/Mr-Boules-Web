@@ -15,14 +15,24 @@ export function openAdd(subject, section) {
       </div>`;
   } else if (section === 'marks') {
     fields = `
-      <label>Quiz Title</label><input type="text" id="m-quiz-title" placeholder="e.g. Quiz 1 - Pure Math" />
-      <label>Upload CSV <span style="text-transform:none;color:var(--paper-text-faint)">(Format: email,mark)</span></label>
+      <label>Quiz Title</label>
+      <input type="text" id="m-quiz-title" placeholder="e.g. Quiz 1 - Pure Math" />
+
+      <label>CSV File <span style="text-transform:none;color:var(--paper-text-faint)">(email, mark, id)</span></label>
       <input type="file" id="m-csv-file" accept=".csv,text/csv" />
-      <p style="font-size:11px; color:var(--paper-text-faint); margin-top:10px;">Create an Excel file with two columns (Email and Mark), then save as CSV.</p>`;
+
+      <label>ZIP of PDFs <span style="text-transform:none;color:var(--paper-text-faint)">(named by student ID, e.g. A0A56.pdf)</span></label>
+      <input type="file" id="m-zip-file" accept=".zip,application/zip" />
+
+      <p style="font-size:11px; color:var(--paper-text-faint); margin-top:12px; line-height:1.5;">
+        CSV format: <code>email,mark,id</code><br>
+        Example: <code>ahmed@gmail.com,85,A0A56</code><br>
+        ZIP must contain PDFs named exactly like the ID (A0A56.pdf)
+      </p>`;
 
     const subjLabel = SUBJECT_META[subject]?.label || subject;
     document.getElementById('modal').innerHTML = `
-      <h2>Manage Marks <span>— ${subjLabel}</span></h2>${fields}
+      <h2>Upload Marks + PDFs <span>— ${subjLabel}</span></h2>${fields}
       <div class="modal-footer">
         <button class="btn-cancel" onclick="closeModal()">Cancel</button>
         <button class="btn-primary" id="m-upload-btn" onclick="window.handleMarksUpload('${subject}')">Upload Marks</button>
@@ -86,10 +96,8 @@ export async function submitAdd(subject, section) {
       data.pinned  = document.getElementById('f-pin')?.value === 'yes';
 
       if (linkEl && linkEl.value.trim()) {
-        // Plain link (recordings)
         data.link = linkEl.value.trim();
       } else if (fileEl && fileEl.files[0]) {
-        // File upload (homework images, notes PDFs)
         const file = fileEl.files[0];
         const path = section === 'homework'
           ? `homework-images/${subject}/${Date.now()}_${file.name}`

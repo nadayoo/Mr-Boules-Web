@@ -1,4 +1,4 @@
-import { db, ADMIN_EMAIL, ADMIN_ID, ALL_SUBJECTS, toast } from './config.js';
+import { db, ADMINS, ALL_SUBJECTS, toast } from './config.js';
 import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { buildHub, startListeners, loadStudentProgress } from './hub.js';
 
@@ -29,13 +29,13 @@ export async function doLogin() {
   if (!email) { showError('Enter your email to continue.'); return; }
   if (!id)    { showError('Enter your Student ID to continue.'); return; }
 
-  if (email === ADMIN_EMAIL.toLowerCase() && id === ADMIN_ID) {
-    state.isAdmin      = true;
-    state.userEmail    = email;
-    state.userSubjects = ALL_SUBJECTS;
-    await enterHub(email);
-    return;
-  }
+  if (ADMINS[email] && ADMINS[email] === id) {
+  state.isAdmin      = true;
+  state.userEmail    = email;
+  state.userSubjects = ALL_SUBJECTS;
+  await enterHub(email);
+  return;
+    }
 
   if (!validateID(id)) {
     showError('ID format looks off — 5 characters, 2 letters and 3 numbers, starting with a letter.');

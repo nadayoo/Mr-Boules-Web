@@ -120,7 +120,7 @@ export function renderMarks(subject, data) {
   const el = document.getElementById(`list-${subject}-marks`);
   if (!el) return;
   
-  // If student, only show their marks
+  // Students only see their own marks
   const filteredData = state.isAdmin ? data : data.filter(d => d.email === state.userEmail);
 
   if (!filteredData.length) { 
@@ -136,6 +136,7 @@ export function renderMarks(subject, data) {
             <th>Quiz / Exam</th>
             ${state.isAdmin ? '<th>Student Email</th>' : ''}
             <th>Mark</th>
+            <th>PDF</th>
             ${state.isAdmin ? '<th>Action</th>' : ''}
           </tr>
         </thead>
@@ -145,6 +146,11 @@ export function renderMarks(subject, data) {
               <td>${esc(item.quiz)}</td>
               ${state.isAdmin ? `<td>${esc(item.email)}</td>` : ''}
               <td><span class="mark-badge">${esc(item.mark)}</span></td>
+              <td>
+                ${item.pdfUrl 
+                  ? `<a class="card-link" href="${esc(item.pdfUrl)}" target="_blank" rel="noopener"><i class="ti ti-file-type-pdf"></i> Download</a>` 
+                  : '<span style="color:var(--ink-text-faint);font-size:12px;">—</span>'}
+              </td>
               ${state.isAdmin ? `<td>${delBtn(subject, 'marks', item._id)}</td>` : ''}
             </tr>
           `).join('')}
@@ -154,7 +160,14 @@ export function renderMarks(subject, data) {
   `;
 }
 
-export const RENDERERS = { announcements: renderAnnouncements, recordings: renderRecordings, homework: renderHomework, notes: renderNotes, schedule: renderSchedule, marks: renderMarks };
+export const RENDERERS = { 
+  announcements: renderAnnouncements, 
+  recordings: renderRecordings, 
+  homework: renderHomework, 
+  notes: renderNotes, 
+  schedule: renderSchedule, 
+  marks: renderMarks 
+};
 
 window.toggleHomework = async (homeworkId, isDone) => {
   if (state.isAdmin) return;
