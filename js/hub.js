@@ -31,18 +31,22 @@ export function buildHub(subjects) {
 }
 
 export function buildSubjectPanel(subject) {
-  const tabsHtml = SECTIONS.map((s,i) => `
-    <button class="tab ${i===0?'active':''}" data-subject="${subject}" data-section="${s}">
+  const tabsHtml = SECTIONS.map((s, i) => `
+    <button class="tab ${i === 0 ? 'active' : ''}" data-subject="${subject}" data-section="${s}">
       <i class="ti ${SECTION_META[s].icon}"></i> ${SECTION_META[s].label.split(' ')[0]}
     </button>`).join('');
-  const sectionsHtml = SECTIONS.map((s,i) => `
-    <div class="section ${i===0?'active':''}" data-subject="${subject}" data-section-panel="${s}">
+
+  const sectionsHtml = SECTIONS.map((s, i) => `
+    <div class="section ${i === 0 ? 'active' : ''}" data-subject="${subject}" data-section-panel="${s}">
       <div class="section-header">
         <span class="section-title">${SECTION_META[s].label}</span>
-        <button class="add-btn" onclick="openAdd('${subject}','${s}')"><i class="ti ti-plus"></i> ${s==='marks'?'Manage':'Add'}</button>
+        <button class="add-btn" onclick="openAdd('${subject}','${s}')">
+          <i class="ti ti-plus"></i> ${s === 'marks' ? 'Manage' : 'Add'}
+        </button>
       </div>
       <div id="list-${subject}-${s}"><div class="loading">Loading…</div></div>
     </div>`).join('');
+
   return `<div class="tabs">${tabsHtml}</div>${sectionsHtml}`;
 }
 
@@ -63,13 +67,15 @@ export async function loadStudentProgress(email) {
         state.studentProgress[homeworkId] = true;
       }
     });
-  } catch(e) { console.error("Error loading progress", e); }
+  } catch (e) {
+    console.error("Error loading progress", e);
+  }
 }
 
 export function startListeners() {
   state.userSubjects.forEach(subject => {
     SECTIONS.forEach(section => {
-      const q = query(collection(db, `${subject}_${section}`), orderBy('createdAt','desc'));
+      const q = query(collection(db, `${subject}_${section}`), orderBy('createdAt', 'desc'));
       onSnapshot(q, snap => {
         RENDERERS[section](subject, snap.docs.map(d => ({ _id: d.id, ...d.data() })));
       });
@@ -79,8 +85,12 @@ export function startListeners() {
 
 export async function _del(subject, section, id) {
   if (!state.isAdmin) return;
-  try { await deleteDoc(doc(db, `${subject}_${section}`, id)); toast('Deleted'); }
-  catch(e) { toast('Error deleting', 'ti-alert-triangle'); }
+  try {
+    await deleteDoc(doc(db, `${subject}_${section}`, id));
+    toast('Deleted');
+  } catch (e) {
+    toast('Error deleting', 'ti-alert-triangle');
+  }
 }
 
 window.setSubject = setSubject;
@@ -92,7 +102,7 @@ document.addEventListener('click', (e) => {
   if (!tabBtn) return;
   const subject = tabBtn.dataset.subject;
   const section = tabBtn.dataset.section;
-  const panel   = document.getElementById('panel-' + subject);
+  const panel = document.getElementById('panel-' + subject);
   panel.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   tabBtn.classList.add('active');
   panel.querySelectorAll('.section').forEach(s => s.classList.remove('active'));

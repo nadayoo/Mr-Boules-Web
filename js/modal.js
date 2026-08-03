@@ -1,6 +1,7 @@
 import { db, storage, SUBJECT_META, SECTION_META, toast } from './config.js';
-import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { state } from './auth.js';
 
 export function openAdd(subject, section) {
   let fields = '';
@@ -42,11 +43,13 @@ export function openAdd(subject, section) {
   } else {
     let fileInput = '';
     if (section === 'homework') {
-      fileInput = `<label>Upload Image <span style="text-transform:none;color:var(--paper-text-faint)">(JPG, PNG, GIF, WebP)</span></label>
-                   <input type="file" id="f-file" accept="image/jpeg,image/png,image/gif,image/webp" />`;
-    } else if (section === 'recordings') {
-      fileInput = `<label>Link <span style="text-transform:none;color:var(--paper-text-faint)">(YouTube / Zoom / Drive)</span></label>
-                   <input type="url" id="f-link" placeholder="https://…" />`;
+      fileInput = `
+        <label>Upload Images <span style="text-transform:none;color:var(--paper-text-faint)">(max 2)</span></label>
+        <input type="file" id="f-images" accept="image/jpeg,image/png,image/gif,image/webp" multiple />
+
+        <label style="margin-top:12px;">Upload PDFs <span style="text-transform:none;color:var(--paper-text-faint)">(max 2)</span></label>
+        <input type="file" id="f-pdfs" accept="application/pdf" multiple />
+      `;
     } else if (section === 'notes') {
       fileInput = `<label>Upload PDF</label>
                    <input type="file" id="f-file" accept="application/pdf" />`;
@@ -75,11 +78,11 @@ export function openAdd(subject, section) {
 
 export async function submitAdd(subject, section) {
   const btn = document.getElementById('submit-btn');
-  const fileEl = document.getElementById('f-file');
-  const linkEl = document.getElementById('f-link');
   btn.disabled = true; btn.textContent = 'Saving…';
+
   try {
     let data = { createdAt: serverTimestamp() };
+
     if (section === 'schedule') {
       data.day    = document.getElementById('f-day').value;
       data.time   = document.getElementById('f-time').value || '—';
@@ -87,7 +90,12 @@ export async function submitAdd(subject, section) {
       data.lesson = document.getElementById('f-lesson').value || '';
     } else {
       const title = document.getElementById('f-title')?.value?.trim();
-      if (!title) { document.getElementById('f-title').focus(); btn.disabled=false; btn.textContent='Add'; return; }
+      if (!title) {
+        document.getElementById('f-title').focus();
+        btn.disabled = false;
+        btn.textContent = 'Add';
+        return;
+      }
       data.title   = title;
       data.chapter = document.getElementById('f-chapter')?.value?.trim() || '';
       data.desc    = document.getElementById('f-desc')?.value?.trim()  || '';
@@ -95,29 +103,170 @@ export async function submitAdd(subject, section) {
       data.badge   = document.getElementById('f-badge')?.value          || '';
       data.pinned  = document.getElementById('f-pin')?.value === 'yes';
 
-      if (linkEl && linkEl.value.trim()) {
-        data.link = linkEl.value.trim();
-      } else if (fileEl && fileEl.files[0]) {
-        const file = fileEl.files[0];
-        const path = section === 'homework'
-          ? `homework-images/${subject}/${Date.now()}_${file.name}`
-          : `pdfs/${subject}/${Date.now()}_${file.name}`;
-        btn.textContent = 'Uploading file…';
-        const storageRef = ref(storage, path);
-        const snapshot = await uploadBytes(storageRef, file);
-        data.link = await getDownloadURL(snapshot.ref);
+      if (section === 'homework') {
+        data.images = [];
+        data.pdfs = [];
+
+        const imageInput = document.getElementById('f-images');
+        const pdfInput = document.getElementById('f-pdfs');
+
+        if (imageInput && imageInput.files.length) {
+          const images = Array.from(imageInput.files).slice(0, 2);
+          for (const file of images) {
+            btn.textContent = `Uploading image…`;
+            const path = `homework-images/${subject}/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, path);
+            const snapshot = await uploadBytes(storageRef, file);
+            data.images.push(await getDownloadURL(snapshot.ref));
+          }
+        }
+
+        if (pdfInput && pdfInput.files.length) {
+          const pdfs = Array.from(pdfInput.files).slice(0, 2);
+          for (const file of pdfs) {
+            btn.textContent = `Uploading PDF…`;
+            const path = `homework-pdfs/${subject}/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, path);
+            const snapshot = await uploadBytes(storageRef, file);
+            data.pdfs.push(await getDownloadURL(snapshot.ref));
+          }
+        }
       } else {
-        data.link = '';
+        const fileEl = document.getElementById('f-file');
+        if (fileEl && fileEl.files[0]) {
+          const file = fileEl.files[0];
+          const path = `pdfs/${subject}/${Date.now()}_${file.name}`;
+          btn.textContent = 'Uploading file…';
+          const storageRef = ref(storage, path);
+          const snapshot = await uploadBytes(storageRef, file);
+          data.link = await getDownloadURL(snapshot.ref);
+        } else {
+          data.link = '';
+        }
       }
     }
+
     await addDoc(collection(db, `${subject}_${section}`), data);
-    closeModal(); toast('Added successfully');
-  } catch(e) { console.error(e); toast('Error saving', 'ti-alert-triangle'); btn.disabled=false; btn.textContent='Add'; }
+    closeModal();
+    toast('Added successfully');
+  } catch (e) {
+    console.error(e);
+    toast('Error saving', 'ti-alert-triangle');
+    btn.disabled = false;
+    btn.textContent = 'Add';
+  }
 }
 
-export function closeModal() { document.getElementById('overlay').classList.remove('open'); }
-export function openModal() { document.getElementById('overlay').classList.add('open'); }
+// ========== STUDENT SUBMISSION ==========
+export async function openStudentSubmit(subject, homeworkId, title) {
+  try {
+    const subRef = doc(db, 'submissions', `${state.userEmail}_${homeworkId}`);
+    const snap = await getDoc(subRef);
+    if (snap.exists()) {
+      toast('You already submitted this homework', 'ti-alert-triangle');
+      return;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+
+  document.getElementById('modal').innerHTML = `
+    <h2>Submit your work <span>— ${title}</span></h2>
+    <label>Upload Image or PDF</label>
+    <input type="file" id="s-file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" />
+    <p style="font-size:12px;color:var(--paper-text-faint);margin-top:10px;">
+      You can only submit <strong>once</strong>. Make sure it’s the correct file.
+    </p>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="s-submit-btn" onclick="window.submitStudentWork('${subject}','${homeworkId}')">
+        Submit
+      </button>
+    </div>
+  `;
+  openModal();
+}
+
+export async function submitStudentWork(subject, homeworkId) {
+  const btn = document.getElementById('s-submit-btn');
+  const fileInput = document.getElementById('s-file');
+
+  if (!fileInput.files[0]) {
+    toast('Please select a file', 'ti-alert-triangle');
+    return;
+  }
+
+  // Prevent double submit
+  try {
+    const subRef = doc(db, 'submissions', `${state.userEmail}_${homeworkId}`);
+    const snap = await getDoc(subRef);
+    if (snap.exists()) {
+      toast('You already submitted this homework', 'ti-alert-triangle');
+      closeModal();
+      return;
+    }
+  } catch (e) {}
+
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+
+  try {
+    const file = fileInput.files[0];
+    const isPdf = file.type === 'application/pdf';
+    const folder = isPdf ? 'student-pdfs' : 'student-images';
+    const path = `${folder}/${subject}/${state.userEmail}_${homeworkId}_${Date.now()}_${file.name}`;
+
+    const storageRef = ref(storage, path);
+    const snapshot = await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(snapshot.ref);
+
+    const subRef = doc(db, 'submissions', `${state.userEmail}_${homeworkId}`);
+    await setDoc(subRef, {
+      email: state.userEmail,
+      subject,
+      homeworkId,
+      url,
+      fileType: isPdf ? 'pdf' : 'image',
+      submittedAt: serverTimestamp()
+    });
+
+    closeModal();
+    toast('Submitted successfully!');
+
+    // ===== Immediately update the UI without reloading =====
+    const card = document.getElementById(`hw-card-${homeworkId}`);
+    if (card) {
+      const submitArea = card.querySelector('.card-body > div:last-child');
+      if (submitArea) {
+        submitArea.innerHTML = `
+          <div style="font-size:13px; color:var(--chalk-teal);">
+            <i class="ti ti-check"></i> You already submitted this homework
+            — <a href="${url}" target="_blank" style="color:var(--chalk-teal);text-decoration:underline;">View your file</a>
+          </div>
+        `;
+      }
+    }
+
+  } catch (e) {
+    console.error(e);
+    toast('Upload failed', 'ti-alert-triangle');
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+  }
+}
+
+export function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+}
+export function openModal() {
+  document.getElementById('overlay').classList.add('open');
+}
 
 window.submitAdd = submitAdd;
 window.closeModal = closeModal;
-document.getElementById('overlay').addEventListener('click', e => { if (e.target===document.getElementById('overlay')) closeModal(); });
+window.openStudentSubmit = openStudentSubmit;
+window.submitStudentWork = submitStudentWork;
+
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('overlay')) closeModal();
+});

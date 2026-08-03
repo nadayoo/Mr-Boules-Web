@@ -39,10 +39,9 @@ export const SUBJECT_META = {
   oledx:      { label: 'OL Edexcel',    icon: 'ti-math' }
 };
 export const DAY_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-export const SECTIONS  = ['announcements','recordings','homework','notes','schedule','marks'];
+export const SECTIONS  = ['announcements','homework','notes','schedule','marks'];
 export const SECTION_META = {
   announcements: { label: 'Announcements',            icon: 'ti-speakerphone', addLabel: 'New announcement' },
-  recordings:    { label: 'Recordings',               icon: 'ti-video',        addLabel: 'Add recording'    },
   homework:      { label: 'Homework & Assignments',    icon: 'ti-notebook',     addLabel: 'Add homework'     },
   notes:         { label: 'Lecture Notes & Resources', icon: 'ti-file-text',    addLabel: 'Add notes'        },
   schedule:      { label: 'Weekly Schedule',           icon: 'ti-calendar',     addLabel: 'Add schedule entry'},
