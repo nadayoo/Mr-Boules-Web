@@ -1,4 +1,4 @@
-import { db, ADMINS, ALL_SUBJECTS, toast } from './config.js';
+import { db, ADMINS, ALL_SUBJECTS, ACTIVE_SUBJECTS, toast } from './config.js';
 import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { buildHub, startListeners, loadStudentProgress } from './hub.js';
 
@@ -32,7 +32,7 @@ export async function doLogin() {
   if (ADMINS[email] && ADMINS[email] === id) {
   state.isAdmin      = true;
   state.userEmail    = email;
-  state.userSubjects = ALL_SUBJECTS;
+  state.userSubjects = ACTIVE_SUBJECTS;
   await enterHub(email);
   return;
     }
@@ -50,9 +50,9 @@ export async function doLogin() {
     if (snap.exists() && snap.data().id === id) {
       state.isAdmin = false;
       state.userEmail = email;
-      const raw = snap.data().subjects || ALL_SUBJECTS;
-      state.userSubjects = ALL_SUBJECTS.filter(s => raw.includes(s));
-      if (state.userSubjects.length === 0) state.userSubjects = ALL_SUBJECTS;
+      const raw = snap.data().subjects || ACTIVE_SUBJECTS;
+      state.userSubjects = ACTIVE_SUBJECTS.filter(s => raw.includes(s));
+      if (state.userSubjects.length === 0) state.userSubjects = ACTIVE_SUBJECTS;
       await enterHub(email);
     } else {
       showError("Couldn't match that email and ID. Double-check, or contact the assistants.");

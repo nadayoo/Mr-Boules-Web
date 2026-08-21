@@ -30,6 +30,7 @@ export const ADMINS = {
 };
 
 export const ALL_SUBJECTS = ['aspure','a2pure','mechanics','statistics','olcam','oledx'];
+export const ACTIVE_SUBJECTS = ['olcam','oledx'];
 export const SUBJECT_META = {
   aspure:     { label: 'AS Pure',    icon: 'ti-math-function'  },
   a2pure:     { label: 'A2 Pure',    icon: 'ti-math-function'  },
