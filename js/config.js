@@ -26,6 +26,7 @@ export const ADMINS = {
   "menna@admin.com": "ADMIN6",
   "parthinia@admin.com": "ADMIN7",
   "judi@admin.com": "ADMIN8",
+  "rivana@admin.com": "ADMIN9",
   "mrboules@admin.com": "ADMIN0909"
 };
 
@@ -40,13 +41,14 @@ export const SUBJECT_META = {
   oledx:      { label: 'OL Edexcel',    icon: 'ti-math' }
 };
 export const DAY_ORDER = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-export const SECTIONS  = ['announcements','homework','notes','schedule','marks'];
+export const SECTIONS  = ['announcements','homework','notes','schedule','marks','attendance'];
 export const SECTION_META = {
   announcements: { label: 'Announcements',            icon: 'ti-speakerphone', addLabel: 'New announcement' },
   homework:      { label: 'Homework & Assignments',    icon: 'ti-notebook',     addLabel: 'Add homework'     },
   notes:         { label: 'Lecture Notes & Resources', icon: 'ti-file-text',    addLabel: 'Add notes'        },
   schedule:      { label: 'Weekly Schedule',           icon: 'ti-calendar',     addLabel: 'Add schedule entry'},
-  marks:         { label: 'Quiz & Exam Marks',         icon: 'ti-chart-bar',    addLabel: 'Manage marks'     }
+  marks:         { label: 'Quiz & Exam Marks',         icon: 'ti-chart-bar',    addLabel: 'Manage marks'     },
+  attendance:    { label: 'Attendance History',        icon: 'ti-calendar-check', addLabel: 'Upload attendance'}
 };
 
 export function esc(str) {

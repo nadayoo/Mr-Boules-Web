@@ -61,6 +61,8 @@
 <script type="module">
   import { doLogin } from './js/auth.js';
   import './js/marks.js';
+  import './js/attendance.js';
+  
   document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-id').focus(); });
   document.getElementById('login-id').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 </script>
