@@ -1,53 +1,91 @@
-# Mr. Boules — Student Portal & Attendance System
+# Mr. Boules Web Portal (`Mr-Boules-Web`)
 
-An all-in-one educational management portal built with HTML5, CSS3, JavaScript (ES6 Modules), and Firebase. Designed for tracking student submissions, publishing lecture notes, scheduling weekly classes, posting quiz/exam marks, and managing session attendance across multiple curricula (Cambridge & Edexcel).
-
----
-
-## 🌟 Key Features
-
-* **Authentication & Role Access:**  
-  * **Students:** Secure login using Email + 5-character Student ID validation (e.g., `AB123`).
-  * **Admins:** Dedicated admin authorization with administrative controls and content creation privileges.
-
-* **Attendance Management:**  
-  * CSV upload pipeline mapping student IDs directly to registered emails.
-  * Real-time student attendance status tracking and automated reporting of unlinked IDs.
-
-* **Homework & Submissions:**  
-  * Admin assignment creation with deadline enforcement, PDF downloads, and image previews.
-  * Single-submission rule per student with Firebase Storage integration.
-  * Consecutive missed homework alerts for students.
-
-* **Quiz & Exam Marks:**  
-  * Batch CSV mark uploading with automated ZIP file mapping to link student PDFs to individual grades.
-
-* **Interactive Hub:**  
-  * Tabbed curriculum views (`OL Cambridge`, `OL Edexcel`, `AS Pure`, etc.).
-  * Real-time UI updates powered by Firestore `onSnapshot` listeners.
+An interactive student management web application and automated administrative dashboard built to process attendance, assignment marks, and cohort records for Cambridge and Edexcel students.
 
 ---
 
-## 🛠️ Tech Stack
+## Technical Architecture Overview
 
-* **Frontend:** Vanilla JS (ES Modules), CSS3 (Custom Variables), HTML5
-* **Icons:** Tabler Icons (`@tabler/icons-webfont`)
-* **Backend & Database:** Firebase Firestore (v10.12)
-* **Storage:** Firebase Storage
-* **Libraries:** JSZip (PDF/ZIP extraction for marks)
+The application follows a decoupled client-serverless architecture utilizing vanilla JavaScript modules on the frontend and Node.js Firebase Cloud Functions on the backend.
+
+### Frontend Logic (`/js`)
+- **`auth.js`**: Handles Firebase Authentication state, login flows, and session persistence.
+- **`config.js`**: Holds Firebase client SDK setup and configuration parameters.
+- **`attendance.js`**: Manages frontend attendance recording, status toggles, and UI interactions.
+- **`marks.js`**: Logic for homework submission tracking and student mark calculations.
+- **`hub.js`**: Main dashboard controller orchestrating module views and student navigation.
+- **`modal.js`**: UI component logic for popup dialogs and confirmation screens.
+- **`render.js`**: Dynamic DOM rendering pipeline for data lists, tables, and views.
+
+### Backend & Serverless (`/functions`)
+- **`index.js`**: Entry point for Cloud Functions, database triggers (e.g., Firestore listeners), and API endpoints.
+- **`attendanceSheet.js`**: Automated ingestion and sync service for external spreadsheet data and attendance parsing.
+- **`service-account.json`**: *(Local only)* Firebase Admin SDK credentials for local emulator testing.
 
 ---
 
-## 📂 Project Structure
+## Project Directory Tree
 
 ```text
-├── index.html         # Application shell and entry DOM structure
-├── css/               # Global styles and theme definitions
-└── js/
-    ├── config.js      # Firebase initialisation, Admin maps, & Subject metadata
-    ├── auth.js        # Auth state management & ID validation
-    ├── hub.js         # Core workspace tab builders & Firestore real-time listeners
-    ├── render.js      # UI Render pipeline for all sections (Homework, Attendance, etc.)
-    ├── modal.js       # Dynamic modal dialog handler & submission workflows
-    ├── attendance.js # CSV parsing & Firestore attendance batch upload logic
-    └── marks.js      # CSV/ZIP extraction and batch grade entry logic
+Boules/
+├── .agents/               # Agent configuration/prompt files
+├── .firebase/             # Firebase local deployment build cache
+├── css/                   # Stylesheets
+├── functions/             # Firebase Serverless Backend (Node.js)
+│   ├── node_modules/
+│   ├── attendanceSheet.js # Attendance sync service & sheet parser
+│   ├── index.js           # Cloud Functions entry point
+│   ├── package-lock.json
+│   ├── package.json
+│   └── service-account.json # Private local key (git-ignored)
+├── js/                    # Client-Side Application Modules
+│   ├── attendance.js      # Attendance features logic
+│   ├── auth.js            # Authentication logic
+│   ├── config.js          # Firebase SDK configuration
+│   ├── hub.js             # Dashboard controller
+│   ├── marks.js           # Student marks & homework logic
+│   ├── modal.js           # UI Modal dialog handler
+│   └── render.js          # DOM manipulation & view rendering
+├── .firebaserc            # Firebase project target aliases
+├── .gitignore             # Git exclusion rules
+├── firebase.json          # Firebase Hosting & Functions configuration
+├── import-students.html   # Bulk student import batch page
+├── index.html             # Application entry point & main layout
+├── README.md              # Project documentation
+└── skills-lock.json       # Agent/Tool skills environment file
+
+
+Setup & Deployment
+Prerequisites
+Node.js (v18+)
+
+Firebase CLI (npm install -g firebase-tools)
+
+Local Environment Setup
+Clone & Install Dependencies:
+
+Bash
+git clone [https://github.com/nadayoo/Mr-Boules-Web.git](https://github.com/nadayoo/Mr-Boules-Web.git)
+cd Boules/functions
+npm install
+cd ..
+Configure Service Account Key:
+
+Place your generated Firebase Admin JSON key inside functions/service-account.json.
+
+Security Warning: service-account.json is blocked by .gitignore. Never commit this file.
+
+Run via Firebase Emulators:
+
+Bash
+firebase emulators:start
+Deployment Commands
+Bash
+# Deploy entire stack (Hosting + Functions)
+firebase deploy
+
+# Deploy Cloud Functions only
+firebase deploy --only functions
+
+# Deploy Frontend static hosting only
+firebase deploy --only hosting
