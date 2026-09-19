@@ -54,33 +54,39 @@ Boules/
 ├── README.md              # Project documentation
 └── skills-lock.json       # Agent/Tool skills environment file
 
+## Setup & Deployment
 
-Setup & Deployment
-Prerequisites
-Node.js (v18+)
+### Prerequisites
 
-Firebase CLI (npm install -g firebase-tools)
+* Node.js (v18+)
+* Firebase CLI (`npm install -g firebase-tools`)
 
-Local Environment Setup
-Clone & Install Dependencies:
+---
 
-Bash
-git clone [https://github.com/nadayoo/Mr-Boules-Web.git](https://github.com/nadayoo/Mr-Boules-Web.git)
-cd Boules/functions
-npm install
-cd ..
-Configure Service Account Key:
+### Local Environment Setup
 
-Place your generated Firebase Admin JSON key inside functions/service-account.json.
+* **Clone & Install Dependencies:**
+  ```bash
+  git clone [https://github.com/nadayoo/Mr-Boules-Web.git](https://github.com/nadayoo/Mr-Boules-Web.git)
+  cd Boules/functions
+  npm install
+  cd ..
 
-Security Warning: service-account.json is blocked by .gitignore. Never commit this file.
+### Configure Service Account Key
 
-Run via Firebase Emulators:
+Place your generated Firebase Admin JSON key inside `functions/service-account.json`.
 
-Bash
+> **Security Warning:** `service-account.json` is blocked by `.gitignore`. Never commit this file.
+
+---
+
+### Run via Firebase Emulators
+
+```bash
 firebase emulators:start
-Deployment Commands
-Bash
+
+
+### Deployment Commands
 # Deploy entire stack (Hosting + Functions)
 firebase deploy
 

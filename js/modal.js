@@ -96,7 +96,7 @@ export function openAdd(subject, section) {
       <textarea id="f-desc" placeholder="Add details…"></textarea>
       ${section !== 'homework' ? `
         <label>Date</label>
-        <input type="text" id="f-date" placeholder="e.g. Jun 28" />
+        <input type="date" id="f-date" />
       ` : ''}
       ${fileInput}
       ${section === 'announcements' ? `
@@ -174,7 +174,6 @@ export async function submitAdd(subject, section) {
         data.deadline = new Date(deadlineValue).toISOString();
         data.date = new Date(deadlineValue).toLocaleString();
 
-        // Generate hw01, hw02, hw03...
         const hwSnap = await getDocs(collection(db, `${subject}_homework`));
         const nextNum = hwSnap.size + 1;
         data.hwCode = `hw${String(nextNum).padStart(2, '0')}`;
@@ -202,19 +201,28 @@ export async function submitAdd(subject, section) {
             btn.textContent = 'Uploading PDF…';
             const path = `homework-pdfs/${subject}/${Date.now()}_${file.name}`;
             const storageRef = ref(storage, path);
-            const snapshot = await uploadBytes(snapshot.ref);
+            const snapshot = await uploadBytes(storageRef, file);
             data.pdfs.push(await getDownloadURL(snapshot.ref));
           }
         }
       } else {
-        data.date = document.getElementById('f-date')?.value?.trim() || 'Today';
+        const rawDate = document.getElementById('f-date')?.value;
+        if (rawDate) {
+          const parsed = new Date(rawDate);
+          data.date = !isNaN(parsed) 
+            ? parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : rawDate;
+        } else {
+          data.date = 'Today';
+        }
+
         const fileEl = document.getElementById('f-file');
         if (fileEl?.files?.[0]) {
           const file = fileEl.files[0];
           const path = `pdfs/${subject}/${Date.now()}_${file.name}`;
           btn.textContent = 'Uploading file…';
           const storageRef = ref(storage, path);
-          const snapshot = await uploadBytes(snapshot.ref);
+          const snapshot = await uploadBytes(storageRef, file);
           data.link = await getDownloadURL(snapshot.ref);
         } else {
           data.link = '';
@@ -233,7 +241,6 @@ export async function submitAdd(subject, section) {
   }
 }
 
-// ========== STUDENT SUBMISSION ==========
 export async function openStudentSubmit(subject, homeworkId, title, hwCode = '') {
   try {
     const subRef = doc(db, 'submissions', `${state.userEmail}_${homeworkId}`);
@@ -294,7 +301,6 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
     const isPdf = file.type === 'application/pdf';
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-    // Use hw01 / hw02 if available, otherwise fall back to the Firebase ID
     const folderName = hwCode || homeworkId;
     const path = `student-submissions/${subject}/${folderName}/${state.userEmail}_${Date.now()}_${safeName}`;
 
@@ -318,7 +324,6 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
     closeModal();
     toast('Submitted successfully!');
 
-    // Update the card immediately
     const card = document.getElementById(`hw-card-${homeworkId}`);
     if (card) {
       const area = card.querySelector('[data-submit-area]');

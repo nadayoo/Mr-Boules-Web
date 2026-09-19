@@ -2,6 +2,15 @@ import { esc, DAY_ORDER, toast, db } from './config.js';
 import { state } from './auth.js';
 import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  return dateStr;
+}
+
 export function delBtn(subject, section, id) {
   return state.isAdmin
     ? `<button class="del-btn" onclick="window._del('${subject}','${section}','${id}')"><i class="ti ti-trash"></i></button>`
@@ -24,7 +33,7 @@ export function renderAnnouncements(subject, data) {
             ${esc(item.title)}
             ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}
           </div>
-          <div class="card-meta">${esc(item.date)}</div>
+          <div class="card-meta">${esc(formatDate(item.date))}</div>
           ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
         </div>
         ${delBtn(subject, 'announcements', item._id)}
@@ -42,7 +51,6 @@ export async function renderHomework(subject, data) {
     return;
   }
 
-  // Load this student's submissions
   let mySubmissions = {};
   if (!state.isAdmin) {
     try {
@@ -56,7 +64,6 @@ export async function renderHomework(subject, data) {
     }
   }
 
-  // Warning for 3 missed in a row
   let warningHtml = '';
   if (!state.isAdmin && data.length >= 3) {
     let consecutiveMissed = 0;
@@ -105,7 +112,7 @@ export async function renderHomework(subject, data) {
             <div class="card-meta">
               ${item.deadline
                 ? `Deadline: ${esc(new Date(item.deadline).toLocaleString())}`
-                : esc(item.date || '')}
+                : esc(formatDate(item.date || ''))}
               ${isExpired ? ' • <span style="color:var(--rust);">Closed</span>' : ''}
             </div>
 
@@ -180,7 +187,7 @@ export function renderNotes(subject, data) {
             ${esc(item.title)}
             ${item.chapter ? `<span class="badge chapter">${esc(item.chapter)}</span>` : ''}
           </div>
-          <div class="card-meta">${esc(item.date)}</div>
+          <div class="card-meta">${esc(formatDate(item.date))}</div>
           ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
           ${item.link
             ? `<a class="card-link" href="${esc(item.link)}" target="_blank" rel="noopener">
@@ -202,10 +209,20 @@ export function renderSchedule(subject, data) {
     return;
   }
 
+  const parseLessonNum = (lessonStr) => {
+    if (!lessonStr) return Infinity;
+    const match = String(lessonStr).match(/\d+/);
+    return match ? parseInt(match[0], 10) : Infinity;
+  };
+
   const grouped = {};
   data.forEach(item => {
     if (!grouped[item.day]) grouped[item.day] = [];
     grouped[item.day].push(item);
+  });
+
+  Object.keys(grouped).forEach(day => {
+    grouped[day].sort((a, b) => parseLessonNum(a.lesson) - parseLessonNum(b.lesson));
   });
 
   const sorted = Object.keys(grouped).sort(
@@ -214,8 +231,7 @@ export function renderSchedule(subject, data) {
 
   el.innerHTML = `<div class="sched-grid">${sorted.map(day => `
     <div class="sched-day">
-      <div class="sched-day-name">${esc(day)}</div>
-      ${grouped[day].map(item => `
+      <div class="sched-day-name">${esc(day)}</div>${grouped[day].map(item => `
         <div class="sched-item">
           <div>
             <div class="sched-topic">${esc(item.time)}</div>
@@ -261,8 +277,7 @@ export function renderMarks(subject, data) {
         <tbody>
           ${filteredData.map(item => `
             <tr>
-              <td>${esc(item.quiz)}</td>
-              ${state.isAdmin ? `<td>${esc(item.email)}</td>` : ''}
+              <td>${esc(item.quiz)}</td>${state.isAdmin ? `<td>${esc(item.email)}</td>` : ''}
               <td><span class="mark-badge">${esc(item.mark)}</span></td>
               <td>
                 ${item.pdfUrl
@@ -307,7 +322,7 @@ export function renderAttendance(subject, data) {
             <span class="badge done">Present</span>
           </div>
           <div class="card-meta">
-            📅 ${esc(item.date || '')}
+            📅 ${esc(formatDate(item.date || ''))}
           </div>
           ${state.isAdmin ? `
             <div class="card-desc" style="margin-top:4px;font-size:12px;color:var(--paper-text-faint);">
