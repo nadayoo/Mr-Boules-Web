@@ -1,6 +1,17 @@
-import { esc, DAY_ORDER, toast, db } from './config.js';
+import { esc, toast, db } from './config.js';
 import { state } from './auth.js';
 import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// Week starting from Friday
+const WEEK_ORDER_FRIDAY = [
+  'Friday',
+  'Saturday',
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday'
+];
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -9,6 +20,20 @@ function formatDate(dateStr) {
     return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
   return dateStr;
+}
+
+function parseTime(timeStr) {
+  if (!timeStr || timeStr === '—') return Infinity;
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return Infinity;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3] ? match[3].toUpperCase() : null;
+
+  if (period === 'PM' && hours < 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
 }
 
 export function delBtn(subject, section, id) {
@@ -221,12 +246,18 @@ export function renderSchedule(subject, data) {
     grouped[item.day].push(item);
   });
 
+  // Sort inside each day by Lesson # first, then by Time (AM to PM)
   Object.keys(grouped).forEach(day => {
-    grouped[day].sort((a, b) => parseLessonNum(a.lesson) - parseLessonNum(b.lesson));
+    grouped[day].sort((a, b) => {
+      const lessonDiff = parseLessonNum(a.lesson) - parseLessonNum(b.lesson);
+      if (lessonDiff !== 0) return lessonDiff;
+      return parseTime(a.time) - parseTime(b.time);
+    });
   });
 
+  // Sort day columns starting from Friday
   const sorted = Object.keys(grouped).sort(
-    (a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)
+    (a, b) => WEEK_ORDER_FRIDAY.indexOf(a) - WEEK_ORDER_FRIDAY.indexOf(b)
   );
 
   el.innerHTML = `<div class="sched-grid">${sorted.map(day => `
