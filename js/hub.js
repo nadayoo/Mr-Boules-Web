@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocs } from 
 import { state } from './auth.js';
 import { RENDERERS } from './render.js';
 import { openAdd } from './modal.js';
+import { SCHEDULABLE, prepareList, listSignature } from './schedule.js';
 
 export function buildHub(subjects) {
   const tabsEl   = document.getElementById('subject-tabs');
@@ -72,15 +73,46 @@ export async function loadStudentProgress(email) {
   }
 }
 
+// Latest raw data per subject/section, so timed posts can appear on their own
+const store = {};      // key -> { subject, section, items }
+const lastSig = {};    // key -> signature of what is currently on screen
+let tickTimer = null;
+
+function refresh(key, force = false) {
+  const entry = store[key];
+  if (!entry) return;
+  const { subject, section, items } = entry;
+  const list = prepareList(section, items, state.isAdmin);
+  const sig = listSignature(list);
+  if (!force && sig === lastSig[key]) return;   // nothing changed, skip re-render
+  lastSig[key] = sig;
+  RENDERERS[section](subject, list);
+}
+
 export function startListeners() {
   state.userSubjects.forEach(subject => {
     SECTIONS.forEach(section => {
-      const q = query(collection(db, `${subject}_${section}`), orderBy('createdAt', 'desc'));
+      const key = `${subject}_${section}`;
+      const q = query(collection(db, key), orderBy('createdAt', 'desc'));
       onSnapshot(q, snap => {
-        RENDERERS[section](subject, snap.docs.map(d => ({ _id: d.id, ...d.data() })));
+        store[key] = {
+          subject,
+          section,
+          items: snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+        };
+        refresh(key, true);
       });
     });
   });
+
+  // Every 30s, check if a scheduled post has just become due
+  if (!tickTimer) {
+    tickTimer = setInterval(() => {
+      Object.keys(store).forEach(key => {
+        if (SCHEDULABLE.includes(store[key].section)) refresh(key);
+      });
+    }, 30000);
+  }
 }
 
 export async function _del(subject, section, id) {

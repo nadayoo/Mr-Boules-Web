@@ -36,6 +36,15 @@ function parseTime(timeStr) {
   return hours * 60 + minutes;
 }
 
+// Admin-only badge for posts that are scheduled for the future
+function scheduledBadge(item) {
+  if (!state.isAdmin || !item._scheduledFor) return '';
+  const when = new Date(item._scheduledFor).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+  });
+  return `<span class="badge" style="background:#fff3cd;color:#8a6d1d;">Scheduled · ${esc(when)}</span>`;
+}
+
 export function delBtn(subject, section, id) {
   return state.isAdmin
     ? `<button class="del-btn" onclick="window._del('${subject}','${section}','${id}')"><i class="ti ti-trash"></i></button>`
@@ -56,6 +65,7 @@ export function renderAnnouncements(subject, data) {
         <div class="card-body">
           <div class="card-title">
             ${esc(item.title)}
+            ${scheduledBadge(item)}
             ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}
           </div>
           <div class="card-meta">${esc(formatDate(item.date))}</div>
@@ -65,6 +75,28 @@ export function renderAnnouncements(subject, data) {
       </div>
     </div>
   `).join('');
+}
+
+// One homework per LESSON is required (each group gets its own post), so a
+// lesson counts as done if the student submitted ANY homework from it.
+// Returns true if none of the last 3 lessons has a submission.
+function missedLastThreeLessons(data, mySubmissions) {
+  const lessonKey = (item) => {
+    const m = String(item.title || '').match(/(?:Lesson|Lecture|Session)\s*(\d+)/i);
+    return m ? `lesson-${parseInt(m[1], 10)}` : `single-${item._id}`;
+  };
+  const lessons = [];   // newest first
+  const seen = {};
+  for (const item of data) {
+    const key = lessonKey(item);
+    if (!(key in seen)) {
+      seen[key] = { submitted: false };
+      lessons.push(seen[key]);
+    }
+    if (mySubmissions[item._id]) seen[key].submitted = true;
+  }
+  const lastThree = lessons.slice(0, 3);
+  return lastThree.length >= 3 && lastThree.every(l => !l.submitted);
 }
 
 export async function renderHomework(subject, data) {
@@ -90,17 +122,12 @@ export async function renderHomework(subject, data) {
   }
 
   let warningHtml = '';
-  if (!state.isAdmin && data.length >= 3) {
-    let consecutiveMissed = 0;
-    for (let i = 0; i < Math.min(3, data.length); i++) {
-      if (!mySubmissions[data[i]._id]) consecutiveMissed++;
-      else break;
-    }
-    if (consecutiveMissed >= 3) {
+  if (!state.isAdmin) {
+    if (missedLastThreeLessons(data, mySubmissions)) {
       warningHtml = `
         <div style="background:var(--rust-dim); border:1px solid var(--rust-line); color:var(--rust);
                     padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13.5px;">
-          <strong>Warning:</strong> You have not submitted the last 3 homeworks. Please catch up.
+          <strong>Warning:</strong> You have not submitted homework for the last 3 lessons. Please catch up.
         </div>`;
     }
   }
@@ -123,6 +150,7 @@ export async function renderHomework(subject, data) {
           <div class="card-body">
             <div class="card-title">
               ${esc(item.title)}
+              ${scheduledBadge(item)}
               ${item.hwCode ? `<span class="badge chapter">${esc(item.hwCode)}</span>` : ''}
               ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}
               ${!state.isAdmin ? `
@@ -210,6 +238,7 @@ export function renderNotes(subject, data) {
         <div class="card-body">
           <div class="card-title">
             ${esc(item.title)}
+            ${scheduledBadge(item)}
             ${item.chapter ? `<span class="badge chapter">${esc(item.chapter)}</span>` : ''}
           </div>
           <div class="card-meta">${esc(formatDate(item.date))}</div>

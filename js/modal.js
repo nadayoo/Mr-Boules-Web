@@ -119,6 +119,10 @@ export function openAdd(subject, section) {
           <option value="done">Done</option>
         </select>
       ` : ''}
+      ${['announcements', 'homework', 'notes'].includes(section) ? `
+        <label style="margin-top:12px;">Publish at <span style="text-transform:none;color:var(--paper-text-faint)">(optional, leave empty to publish now)</span></label>
+        <input type="datetime-local" id="f-publish" />
+      ` : ''}
     `;
   }
 
@@ -161,6 +165,10 @@ export async function submitAdd(subject, section) {
       data.desc = document.getElementById('f-desc')?.value?.trim() || '';
       data.badge = document.getElementById('f-badge')?.value || '';
       data.pinned = document.getElementById('f-pin')?.value === 'yes';
+
+      // Timed post: students only see it once this time has passed
+      const publishValue = document.getElementById('f-publish')?.value;
+      if (publishValue) data.publishAt = new Date(publishValue);
 
       if (section === 'homework') {
         const deadlineValue = document.getElementById('f-deadline')?.value;
