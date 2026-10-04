@@ -1,5 +1,6 @@
 import { esc, toast, db } from './config.js';
 import { state } from './auth.js';
+import { GROUPS, usesGroups, groupOf, cleanLessonTitle, groupLessons, inferGroup, getMyGroup, setMyGroup, cacheHomework, getCachedHomework } from './groups.js';
 import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // Week starting from Friday
@@ -99,58 +100,24 @@ function missedLastThreeLessons(data, mySubmissions) {
   return lastThree.length >= 3 && lastThree.every(l => !l.submitted);
 }
 
-export async function renderHomework(subject, data) {
-  const el = document.getElementById(`list-${subject}-homework`);
-  if (!el) return;
+// One homework card. Admins get one per post; students get one for their own group.
+function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBadge = '' }) {
+  const isDone = state.studentProgress?.[item._id] === true;
+  const images = item.images || (item.link ? [item.link] : []);
+  const pdfs = item.pdfs || [];
 
-  if (!data.length) {
-    el.innerHTML = `<div class="empty"><i class="ti ti-notebook"></i><p>No homework posted yet.</p></div>`;
-    return;
-  }
+  const deadlineMs = item.deadline ? new Date(item.deadline).getTime() : null;
+  const isExpired = deadlineMs ? now > deadlineMs : false;
 
-  let mySubmissions = {};
-  if (!state.isAdmin) {
-    try {
-      for (const item of data) {
-        const subRef = doc(db, 'submissions', `${state.userEmail}_${item._id}`);
-        const snap = await getDoc(subRef);
-        if (snap.exists()) mySubmissions[item._id] = snap.data();
-      }
-    } catch (e) {
-      console.error('Error loading submissions', e);
-    }
-  }
-
-  let warningHtml = '';
-  if (!state.isAdmin) {
-    if (missedLastThreeLessons(data, mySubmissions)) {
-      warningHtml = `
-        <div style="background:var(--rust-dim); border:1px solid var(--rust-line); color:var(--rust);
-                    padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13.5px;">
-          <strong>Warning:</strong> You have not submitted homework for the last 3 lessons. Please catch up.
-        </div>`;
-    }
-  }
-
-  const now = Date.now();
-
-  el.innerHTML = warningHtml + data.map(item => {
-    const isDone = state.studentProgress?.[item._id] === true;
-    const images = item.images || (item.link ? [item.link] : []);
-    const pdfs = item.pdfs || [];
-    const mySub = mySubmissions[item._id];
-
-    const deadlineMs = item.deadline ? new Date(item.deadline).getTime() : null;
-    const isExpired = deadlineMs ? now > deadlineMs : false;
-
-    return `
+  return `
       <div class="card ${isDone ? 'done-card' : ''}" id="hw-card-${item._id}">
         <div class="card-row">
           <div class="card-icon hw"><i class="ti ti-notebook"></i></div>
           <div class="card-body">
             <div class="card-title">
-              ${esc(item.title)}
+              ${esc(displayTitle || item.title)}
               ${scheduledBadge(item)}
+              ${extraBadge}
               ${item.hwCode ? `<span class="badge chapter">${esc(item.hwCode)}</span>` : ''}
               ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}
               ${!state.isAdmin ? `
@@ -203,6 +170,15 @@ export async function renderHomework(subject, data) {
                       ? ` — <a href="${esc(mySub.url)}" target="_blank"
                            style="color:var(--chalk-teal);text-decoration:underline;">View your file</a>`
                       : ''}
+                    ${!isExpired && mySubId ? `
+                      <div style="margin-top:8px;">
+                        <button class="btn-cancel" style="padding:5px 12px;font-size:12px;"
+                          onclick="window.openReplaceSubmit('${subject}','${mySubId}')">
+                          <i class="ti ti-refresh"></i> Replace file
+                        </button>
+                        <span style="font-size:11px;color:var(--ink-text-faint);margin-left:6px;">until the deadline</span>
+                      </div>
+                    ` : ''}
                   </div>
                 ` : isExpired ? `
                   <div style="font-size:13px; color:var(--rust);">
@@ -221,7 +197,153 @@ export async function renderHomework(subject, data) {
         </div>
       </div>
     `;
+}
+
+// Student sees this until they choose a group
+function pickGroupCardHtml(subject, lesson) {
+  const chips = GROUPS.map(g => {
+    const posted = !!lesson.byGroup[g];
+    return `<button class="btn-cancel" ${posted ? '' : 'disabled title="Not posted yet"'}
+      style="padding:6px 12px;font-size:13px;margin:0 6px 6px 0;${posted ? '' : 'opacity:.45;cursor:not-allowed;'}"
+      onclick="window.chooseHomeworkGroup('${subject}','${g}')">Group ${esc(g)}</button>`;
   }).join('');
+
+  return `
+      <div class="card" id="hw-lesson-${lesson.key}">
+        <div class="card-row">
+          <div class="card-icon hw"><i class="ti ti-notebook"></i></div>
+          <div class="card-body">
+            <div class="card-title">${esc(cleanLessonTitle(lesson.items[0]?.title))}</div>
+            <div class="card-meta">Your homework and deadline depend on your group</div>
+            <div class="card-desc">Which group are you in?</div>
+            <div style="margin-top:8px;">${chips}</div>
+            <div style="margin-top:10px;" data-submit-area>
+              <button class="btn-primary" style="padding:7px 14px;font-size:13px;"
+                onclick="window.openGroupPicker('${subject}','${lesson.key}')">
+                <i class="ti ti-upload"></i> Submit my work
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+}
+
+// Student's group is known, but their group's post isn't out yet
+function waitingCardHtml(subject, lesson, myGroup, changeLink) {
+  return `
+      <div class="card" id="hw-lesson-${lesson.key}">
+        <div class="card-row">
+          <div class="card-icon hw"><i class="ti ti-notebook"></i></div>
+          <div class="card-body">
+            <div class="card-title">
+              ${esc(cleanLessonTitle(lesson.items[0]?.title))}
+              <span class="badge chapter">Group ${esc(myGroup)}</span>
+            </div>
+            <div class="card-desc">Your group's homework hasn't been posted yet.</div>
+            ${changeLink}
+          </div>
+        </div>
+      </div>
+    `;
+}
+
+export async function renderHomework(subject, data) {
+  const el = document.getElementById(`list-${subject}-homework`);
+  if (!el) return;
+
+  cacheHomework(subject, data);
+
+  if (!data.length) {
+    el.innerHTML = `<div class="empty"><i class="ti ti-notebook"></i><p>No homework posted yet.</p></div>`;
+    return;
+  }
+
+  let mySubmissions = {};
+  if (!state.isAdmin) {
+    try {
+      for (const item of data) {
+        const subRef = doc(db, 'submissions', `${state.userEmail}_${item._id}`);
+        const snap = await getDoc(subRef);
+        if (snap.exists()) mySubmissions[item._id] = snap.data();
+      }
+    } catch (e) {
+      console.error('Error loading submissions', e);
+    }
+  }
+
+  let warningHtml = '';
+  if (!state.isAdmin) {
+    if (missedLastThreeLessons(data, mySubmissions)) {
+      warningHtml = `
+        <div style="background:var(--rust-dim); border:1px solid var(--rust-line); color:var(--rust);
+                    padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13.5px;">
+          <strong>Warning:</strong> You have not submitted homework for the last 3 lessons. Please catch up.
+        </div>`;
+    }
+  }
+
+  const now = Date.now();
+
+  // ---- Admin: one card per post, exactly as before ----
+  if (state.isAdmin) {
+    el.innerHTML = data.map(item => hwCardHtml(subject, item, { mySub: null, now })).join('');
+    return;
+  }
+
+  // ---- Subjects without groups (e.g. Edexcel): one card per post, as before ----
+  if (!usesGroups(subject)) {
+    el.innerHTML = warningHtml + data
+      .map(item => hwCardHtml(subject, item, { mySub: mySubmissions[item._id], mySubId: item._id, now }))
+      .join('');
+    return;
+  }
+
+  // ---- Student: one card per lesson, showing only their own group ----
+  const inferred = inferGroup(data, mySubmissions);   // locked once they have submitted
+  const locked = !!inferred;
+  const myGroup = inferred || getMyGroup(state.userEmail);
+
+  const changeLink = locked ? '' : `
+    <div style="margin-top:8px;font-size:12px;">
+      <a href="#" onclick="window.clearHomeworkGroup('${subject}');return false;"
+         style="color:var(--chalk-teal);text-decoration:underline;">Not your group? Change</a>
+    </div>`;
+
+  const cards = groupLessons(data).map(lesson => {
+    let html = '';
+    const hasGroups = Object.keys(lesson.byGroup).length > 0;
+
+    if (hasGroups) {
+      const mine = myGroup ? lesson.byGroup[myGroup] : null;
+      const lessonSubItem = lesson.items.find(i => mySubmissions[i._id]);
+      const lessonSub = lessonSubItem ? mySubmissions[lessonSubItem._id] : null;
+
+      if (mine) {
+        html += hwCardHtml(subject, mine, {
+          mySub: lessonSub,
+          mySubId: lessonSubItem ? lessonSubItem._id : null,
+          now,
+          displayTitle: cleanLessonTitle(mine.title),
+          extraBadge: `<span class="badge chapter">Group ${esc(myGroup)}</span>` + (locked ? '' : `
+            <a href="#" onclick="window.clearHomeworkGroup('${subject}');return false;"
+               style="font-size:11px;font-weight:400;color:var(--chalk-teal);text-decoration:underline;">change</a>`)
+        });
+      } else if (myGroup) {
+        html += waitingCardHtml(subject, lesson, myGroup, changeLink);
+      } else {
+        html += pickGroupCardHtml(subject, lesson);
+      }
+    }
+
+    // Older posts with no group in the title are shown as plain cards
+    lesson.items.filter(i => !groupOf(i)).forEach(item => {
+      html += hwCardHtml(subject, item, { mySub: mySubmissions[item._id], mySubId: item._id, now });
+    });
+    return html;
+  });
+
+  el.innerHTML = warningHtml + cards.join('');
 }
 
 export function renderNotes(subject, data) {
@@ -427,4 +549,18 @@ window.toggleHomework = async (homeworkId, isDone) => {
     toast('Error updating status', 'ti-alert-triangle');
     if (card) card.classList.toggle('done-card', !isDone);
   }
+};
+
+// ---- Group selection helpers (homework) ----
+window.rerenderHomework = (subject) => {
+  const cached = getCachedHomework(subject);
+  if (cached) renderHomework(subject, cached);
+};
+window.chooseHomeworkGroup = (subject, group) => {
+  setMyGroup(state.userEmail, group);
+  window.rerenderHomework(subject);
+};
+window.clearHomeworkGroup = (subject) => {
+  setMyGroup(state.userEmail, '');
+  window.rerenderHomework(subject);
 };
