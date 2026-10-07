@@ -1,18 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mr. Boules — IGCSE Mathematics Session</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/main.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mr. Boules — IGCSE Mathematics Session</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
 </head>
 <body>
 <div class="grid-texture"></div>
-
 <div id="login-screen">
   <div class="login-wrap">
     <div class="login-eyebrow">IGCSE Mathematics Session</div>
@@ -22,7 +21,13 @@
       <label class="login-label">Email</label>
       <input class="login-input" type="email" id="login-email" placeholder="your@email.com" autocomplete="email" />
       <label class="login-label">Student ID <span class="opt">— this is your password</span></label>
-      <input class="login-input" type="password" id="login-id" placeholder="e.g. A0A56" maxlength="20" style="text-transform:uppercase" autocomplete="current-password" />
+      <div style="position:relative;">
+        <input class="login-input" type="password" id="login-id" placeholder="e.g. A0A56" maxlength="20" style="text-transform:uppercase;padding-right:46px;" autocomplete="current-password" />
+        <button type="button" id="toggle-id" aria-label="Show Student ID"
+          style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;padding:6px;cursor:pointer;color:inherit;opacity:.6;font-size:18px;line-height:1;">
+          <i class="ti ti-eye"></i>
+        </button>
+      </div>
       <div class="login-error" id="login-error"></div>
       <button class="login-btn" id="login-btn" onclick="doLogin()"><i class="ti ti-arrow-right"></i> Sign in</button>
       <div class="login-footer">
@@ -32,7 +37,6 @@
     <div class="session-tag"><i class="ti ti-calendar-event"></i> IGCSE Mathematics Session</div>
   </div>
 </div>
-
 <div id="hub-screen">
   <div class="page" id="page">
     <div class="hub-header">
@@ -53,18 +57,26 @@
     <div id="subject-panels"></div>
   </div>
 </div>
-
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
-
 <script type="module" src="js/auth.js"></script>
 <script type="module">
-  import { doLogin } from './js/auth.js';
-  import './js/marks.js';
-  import './js/attendance.js';
-  
-  document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-id').focus(); });
-  document.getElementById('login-id').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+import { doLogin } from './js/auth.js';
+import './js/marks.js';
+import './js/attendance.js';
+document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-id').focus(); });
+document.getElementById('login-id').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+// Show / hide the Student ID (password) field
+const idInput = document.getElementById('login-id');
+const toggleBtn = document.getElementById('toggle-id');
+toggleBtn.addEventListener('click', () => {
+  const show = idInput.type === 'password';
+  idInput.type = show ? 'text' : 'password';
+  toggleBtn.innerHTML = show ? '<i class="ti ti-eye-off"></i>' : '<i class="ti ti-eye"></i>';
+  toggleBtn.setAttribute('aria-label', show ? 'Hide Student ID' : 'Show Student ID');
+  idInput.focus();
+});
 </script>
 </body>
 </html>
