@@ -173,7 +173,7 @@ function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBad
                     ${!isExpired && mySubId ? `
                       <div style="margin-top:8px;">
                         <button class="btn-cancel" style="padding:5px 12px;font-size:12px;"
-                          onclick="window.openReplaceSubmit('${subject}','${mySubId}')">
+                          onclick="window.openReplaceSubmit('${subject}','${mySubId}','${item._id}')">
                           <i class="ti ti-refresh"></i> Replace file
                         </button>
                         <span style="font-size:11px;color:var(--ink-text-faint);margin-left:6px;">until the deadline</span>

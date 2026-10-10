@@ -388,6 +388,12 @@ async function submitHomework(subject) {
   }
 }
 
+// True if this homework's deadline has already passed (uses the cached homework list)
+function isPastDeadline(subject, homeworkId) {
+  const item = (getCachedHomework(subject) || []).find(i => i._id === homeworkId);
+  return !!(item && item.deadline && Date.now() > new Date(item.deadline).getTime());
+}
+
 // Storage subfolder for a group, e.g. "/group-5" (Cambridge only; Edexcel stays flat)
 function groupFolder(subject, title) {
   const g = usesGroups(subject) ? groupOf({ title }) : '';
@@ -445,6 +451,12 @@ export async function pickGroupAndSubmit(subject, lessonKey, group) {
 }
 
 export async function openStudentSubmit(subject, homeworkId, title, hwCode = '') {
+  if (isPastDeadline(subject, homeworkId)) {
+    closeModal();
+    toast('The deadline has passed, so this homework is closed', 'ti-alert-triangle');
+    window.rerenderHomework?.(subject);
+    return;
+  }
   try {
     if (await hasLessonSubmission(subject, homeworkId)) {
       toast('You already submitted this homework', 'ti-alert-triangle');
@@ -479,6 +491,9 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
   const btn = document.getElementById('s-submit-btn');
   const fileInput = document.getElementById('s-file');
 
+  // Already running (double tap / repeated clicks): ignore
+  if (btn.disabled) return;
+
   if (!fileInput.files[0]) {
     toast('Please select a file', 'ti-alert-triangle');
     return;
@@ -491,6 +506,18 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
     return;
   }
 
+  // Deadline may have passed while the page was open
+  if (isPastDeadline(subject, homeworkId)) {
+    closeModal();
+    toast('The deadline has passed, so this homework is closed', 'ti-alert-triangle');
+    window.rerenderHomework?.(subject);
+    return;
+  }
+
+  // Lock the button straight away, before any network call, so extra taps can't start more uploads
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+
   try {
     if (await hasLessonSubmission(subject, homeworkId)) {
       toast('You already submitted this homework', 'ti-alert-triangle');
@@ -498,9 +525,6 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
       return;
     }
   } catch (e) {}
-
-  btn.disabled = true;
-  btn.textContent = 'Uploading…';
 
   try {
     const file = fileInput.files[0];
@@ -551,8 +575,8 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
 }
 
 // ---- Replace an existing submission (allowed until the deadline) ----
-export function openReplaceSubmit(subject, homeworkId) {
-  const item = (getCachedHomework(subject) || []).find(i => i._id === homeworkId);
+export function openReplaceSubmit(subject, homeworkId, deadlineId) {
+  const item = (getCachedHomework(subject) || []).find(i => i._id === (deadlineId || homeworkId));
   const title = item ? cleanLessonTitle(item.title) : '';
 
   document.getElementById('modal').innerHTML = `
@@ -565,13 +589,13 @@ export function openReplaceSubmit(subject, homeworkId) {
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" id="r-submit-btn"
-        onclick="window.submitReplacement('${subject}','${homeworkId}')">Replace</button>
+        onclick="window.submitReplacement('${subject}','${homeworkId}','${deadlineId || homeworkId}')">Replace</button>
     </div>
   `;
   openModal();
 }
 
-export async function submitReplacement(subject, homeworkId) {
+export async function submitReplacement(subject, homeworkId, deadlineId) {
   const btn = document.getElementById('r-submit-btn');
   const file = document.getElementById('r-file')?.files?.[0];
 
@@ -584,8 +608,8 @@ export async function submitReplacement(subject, homeworkId) {
     return;
   }
 
-  // The deadline of the homework being replaced
-  const item = (getCachedHomework(subject) || []).find(i => i._id === homeworkId);
+  // The deadline of the post the student is currently shown (their group's post)
+  const item = (getCachedHomework(subject) || []).find(i => i._id === (deadlineId || homeworkId));
   if (item?.deadline && Date.now() > new Date(item.deadline).getTime()) {
     closeModal();
     toast('The deadline has passed, so you can no longer replace your file', 'ti-alert-triangle');
@@ -606,11 +630,15 @@ export async function submitReplacement(subject, homeworkId) {
     }
     const old = snap.data();
 
-    // Keep the new file in the same folder as the old one (e.g. .../hw02/)
+    // Keep the new file next to the old one. If the record's group was corrected by an admin,
+    // use the corrected group's folder (e.g. .../hw02/group-1/).
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const folder = old.path
-      ? old.path.split('/').slice(0, -1).join('/')
-      : `student-submissions/${subject}/${item?.hwCode || homeworkId}${groupFolder(subject, item?.title)}`;
+    const parts = old.path ? old.path.split('/') : [];
+    const recGroup = usesGroups(subject) ? String(old.group || '').trim().toLowerCase() : '';
+    let folder;
+    if (parts.length >= 4 && recGroup) folder = `${parts.slice(0, 3).join('/')}/group-${recGroup}`;
+    else if (parts.length >= 2) folder = parts.slice(0, -1).join('/');
+    else folder = `student-submissions/${subject}/${item?.hwCode || homeworkId}${groupFolder(subject, item?.title)}`;
     const path = `${folder}/${state.userEmail}_${Date.now()}_${safeName}`;
 
     const storageRef = ref(storage, path);

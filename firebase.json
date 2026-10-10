@@ -1,10 +1,22 @@
 {
   "hosting": {
     "public": ".",
+    "predeploy": ["node stamp-version.js"],
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "functions/**",
+      "**/service-account*.json",
+      "stamp-version.js",
+      "README.md",
+      "skills-lock.json"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|json|html)",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
     ]
   },
   "functions": [

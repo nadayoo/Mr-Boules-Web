@@ -30,6 +30,12 @@ export function prepareList(section, items, isAdmin, now = Date.now()) {
 }
 
 // Used by the timer so we only re-render when something actually changed.
-export function listSignature(list) {
-  return list.map((i) => i._id + (i._scheduledFor ? '*' : '')).join('|');
+export function listSignature(list, now = Date.now()) {
+  return list
+    .map((i) => {
+      const dl = i.deadline ? new Date(i.deadline).getTime() : null;
+      // '!' = deadline passed, so the card is redrawn the moment it passes
+      return i._id + (i._scheduledFor ? '*' : '') + (dl && now > dl ? '!' : '');
+    })
+    .join('|');
 }

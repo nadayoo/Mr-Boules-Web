@@ -54,12 +54,37 @@ export function groupLessons(data) {
 // A student's group = the group of any homework they already submitted
 export function inferGroup(data, mySubmissions) {
   for (const item of data) {
-    if (mySubmissions[item._id]) {
-      const g = groupOf(item);
+    const sub = mySubmissions[item._id];
+    if (sub) {
+      // The record's own group wins (admins can correct it); older records fall back to the post's group
+      const own = sub.group ? String(sub.group).trim().toLowerCase() : '';
+      const g = own || groupOf(item);
       if (g) return g;
     }
   }
   return '';
+}
+
+// Admin "Fix Groups": which submission records would change if the student moved to `target`
+// subs = [{ postId, data }]   posts = homework posts
+export function planGroupSwitch(posts, subs, target) {
+  const t = String(target).trim().toLowerCase();
+  const changes = [];
+  const unchanged = [];
+  for (const s of subs) {
+    const post = posts.find((p) => p._id === s.postId) || null;
+    const ref = post || { title: s.data.homeworkTitle };
+    const lesson = lessonOf(ref);
+    const from = (s.data.group ? String(s.data.group).trim().toLowerCase() : '') || groupOf(ref);
+    if (from === t) { unchanged.push({ postId: s.postId, lesson, group: from }); continue; }
+    const targetPost = posts.find((p) => lessonOf(p) === lesson && groupOf(p) === t) || null;
+    const oldTitle = String(s.data.homeworkTitle || (post && post.title) || '');
+    const newTitle = targetPost
+      ? targetPost.title
+      : oldTitle.replace(/Group\s*[A-Za-z0-9]+/i, `Group ${t}`);
+    changes.push({ postId: s.postId, lesson, from, to: t, hasTargetPost: !!targetPost, newTitle });
+  }
+  return { changes, unchanged };
 }
 
 // ---- remembered choice (before the first submission) ----

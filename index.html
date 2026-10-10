@@ -52,6 +52,7 @@
     </div>
     <div class="admin-tools" id="admin-tools" style="display: none;">
       <button onclick="window.location.href='import-students.html'"><i class="ti ti-upload"></i> Import Students</button>
+      <button onclick="window.openGroupFixer()"><i class="ti ti-users-group"></i> Fix Groups</button>
     </div>
     <div class="subject-tabs" id="subject-tabs"></div>
     <div id="subject-panels"></div>
@@ -64,6 +65,8 @@
 import { doLogin } from './js/auth.js';
 import './js/marks.js';
 import './js/attendance.js';
+import './js/update-check.js';
+import './js/group-fixer.js';
 document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-id').focus(); });
 document.getElementById('login-id').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
