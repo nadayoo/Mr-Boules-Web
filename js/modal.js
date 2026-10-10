@@ -388,6 +388,12 @@ async function submitHomework(subject) {
   }
 }
 
+// Storage subfolder for a group, e.g. "/group-5" (Cambridge only; Edexcel stays flat)
+function groupFolder(subject, title) {
+  const g = usesGroups(subject) ? groupOf({ title }) : '';
+  return g ? `/group-${g}` : '';
+}
+
 // True if the student already submitted ANY homework of this lesson (any group)
 async function hasLessonSubmission(subject, homeworkId) {
   const ids = usesGroups(subject) ? lessonItemIds(subject, homeworkId) : [homeworkId];
@@ -501,7 +507,7 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
     const folderName = hwCode || homeworkId;
-    const path = `student-submissions/${subject}/${folderName}/${state.userEmail}_${Date.now()}_${safeName}`;
+    const path = `student-submissions/${subject}/${folderName}${groupFolder(subject, title)}/${state.userEmail}_${Date.now()}_${safeName}`;
 
     const storageRef = ref(storage, path);
     const snapshot = await uploadBytes(storageRef, file, { contentType: 'application/pdf' });
@@ -604,7 +610,7 @@ export async function submitReplacement(subject, homeworkId) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const folder = old.path
       ? old.path.split('/').slice(0, -1).join('/')
-      : `student-submissions/${subject}/${item?.hwCode || homeworkId}`;
+      : `student-submissions/${subject}/${item?.hwCode || homeworkId}${groupFolder(subject, item?.title)}`;
     const path = `${folder}/${state.userEmail}_${Date.now()}_${safeName}`;
 
     const storageRef = ref(storage, path);
