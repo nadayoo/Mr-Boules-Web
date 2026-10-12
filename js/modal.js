@@ -76,6 +76,9 @@ export function openAdd(subject, section) {
       <label style="margin-top:12px;">Upload PDFs <span ${small}>(max 2)</span></label>
       <input type="file" id="f-pdfs" accept="application/pdf" multiple />
 
+      <label style="margin-top:12px;">Homework answers <span ${small}>(optional: PDFs or images, max 5. Hidden from students until each group's deadline passes)</span></label>
+      <input type="file" id="f-answers" accept="application/pdf,image/jpeg,image/png,image/gif,image/webp" multiple />
+
       <label style="margin-top:14px;">Groups <span ${small}>(tick each group that gets this homework)</span></label>
       <div style="display:flex;gap:8px;margin-top:6px;font-size:11px;color:var(--paper-text-faint);">
         <span style="min-width:88px;"></span>
@@ -356,6 +359,28 @@ async function submitHomework(subject) {
       }
     }
 
+    // Homework answers: uploaded once, attached to every ticked group's post
+    const answers = [];
+    const answerInput = document.getElementById('f-answers');
+    if (answerInput?.files?.length) {
+      const picked = Array.from(answerInput.files)
+        .filter(f => f.type === 'application/pdf' || String(f.type).startsWith('image/'))
+        .slice(0, 5);
+      let n = 0;
+      for (const file of picked) {
+        n++;
+        btn.textContent = `Uploading answers (${n}/${picked.length})…`;
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storageRef = ref(storage, `homework-answers/${subject}/${Date.now()}_${safe}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        answers.push({
+          url: await getDownloadURL(snapshot.ref),
+          name: file.name,
+          kind: file.type === 'application/pdf' ? 'pdf' : 'image'
+        });
+      }
+    }
+
     // One post per ticked group
     btn.textContent = 'Saving…';
     for (const g of chosen) {
@@ -373,6 +398,7 @@ async function submitHomework(subject) {
         date: deadline.toLocaleString(),
         images,
         pdfs,
+        answers,
         createdAt: serverTimestamp()
       };
       const pub = document.getElementById(`g-publish-${g}`)?.value;

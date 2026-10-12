@@ -100,6 +100,63 @@ function missedLastThreeLessons(data, mySubmissions) {
   return lastThree.length >= 3 && lastThree.every(l => !l.submitted);
 }
 
+// Homework answers attached to a post. Students only get the links once the deadline has passed
+// (before that, the links are not even written into the page).
+function answersHtml(item, isExpired) {
+  const answers = Array.isArray(item.answers) ? item.answers : [];
+  if (!answers.length) return '';
+
+  const links = answers.map((a, i) => `
+      <a class="card-link" href="${esc(a.url)}" target="_blank" rel="noopener" style="display:block;margin-bottom:4px;">
+        <i class="ti ${a.kind === 'pdf' ? 'ti-file-type-pdf' : 'ti-photo'}"></i> ${esc(a.name || 'Answer ' + (i + 1))}
+      </a>`).join('');
+
+  if (state.isAdmin) {
+    return `
+      <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--chalk-teal-dim);">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:6px;">
+          <i class="ti ti-key"></i> Homework answers (${answers.length}) — students see these after the deadline
+        </div>${links}
+      </div>`;
+  }
+  if (isExpired) return '';     // after the deadline the answers appear as their own green card (answersCardHtml)
+  const when = item.deadline ? ` (${esc(new Date(item.deadline).toLocaleString())})` : '';
+  return `
+      <div style="margin-top:12px;font-size:12.5px;color:var(--ink-text-faint);">
+        <i class="ti ti-lock"></i> Homework answers unlock after the deadline${when}.
+      </div>`;
+}
+
+// A separate green card that appears once THIS group's deadline has passed, holding the answers.
+function answersCardHtml(item) {
+  const answers = Array.isArray(item.answers) ? item.answers : [];
+  if (state.isAdmin || !answers.length) return '';
+  const deadlineMs = item.deadline ? new Date(item.deadline).getTime() : null;
+  if (!deadlineMs || Date.now() <= deadlineMs) return '';
+
+  const links = answers.map((a, i) => `
+      <a class="card-link" href="${esc(a.url)}" target="_blank" rel="noopener"
+         style="display:block;margin-bottom:4px;color:#2e7d32;">
+        <i class="ti ${a.kind === 'pdf' ? 'ti-file-type-pdf' : 'ti-photo'}"></i> ${esc(a.name || 'Answer ' + (i + 1))}
+      </a>`).join('');
+
+  return `
+      <div class="card" id="ans-card-${item._id}" style="background:#e8f5e9;border:1px solid #a5d6a7;color:#1b3a1f;">
+        <div class="card-row">
+          <div class="card-icon" style="background:#c8e6c9;"><i class="ti ti-circle-check" style="color:#2e7d32;font-size:18px;"></i></div>
+          <div class="card-body">
+            <div class="card-title">
+              Answers: ${esc(cleanLessonTitle(item.title))}
+              <span class="badge" style="background:#c8e6c9;color:#1b5e20;">Unlocked</span>
+            </div>
+            <div class="card-meta">Deadline passed: ${esc(new Date(item.deadline).toLocaleString())}</div>
+            <div style="margin-top:8px;">${links}</div>
+          </div>
+        </div>
+      </div>
+    `;
+}
+
 // One homework card. Admins get one per post; students get one for their own group.
 function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBadge = '' }) {
   const isDone = state.studentProgress?.[item._id] === true;
@@ -160,6 +217,8 @@ function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBad
                 `).join('')}
               </div>
             ` : ''}
+
+            ${answersHtml(item, isExpired)}
 
             ${!state.isAdmin ? `
               <div style="margin-top:14px;" data-submit-area>
@@ -294,7 +353,7 @@ export async function renderHomework(subject, data) {
   // ---- Subjects without groups (e.g. Edexcel): one card per post, as before ----
   if (!usesGroups(subject)) {
     el.innerHTML = warningHtml + data
-      .map(item => hwCardHtml(subject, item, { mySub: mySubmissions[item._id], mySubId: item._id, now }))
+      .map(item => hwCardHtml(subject, item, { mySub: mySubmissions[item._id], mySubId: item._id, now }) + answersCardHtml(item))
       .join('');
     return;
   }
@@ -329,6 +388,7 @@ export async function renderHomework(subject, data) {
             <a href="#" onclick="window.clearHomeworkGroup('${subject}');return false;"
                style="font-size:11px;font-weight:400;color:var(--chalk-teal);text-decoration:underline;">change</a>`)
         });
+        html += answersCardHtml(mine);
       } else if (myGroup) {
         html += waitingCardHtml(subject, lesson, myGroup, changeLink);
       } else {
@@ -338,7 +398,7 @@ export async function renderHomework(subject, data) {
 
     // Older posts with no group in the title are shown as plain cards
     lesson.items.filter(i => !groupOf(i)).forEach(item => {
-      html += hwCardHtml(subject, item, { mySub: mySubmissions[item._id], mySubId: item._id, now });
+      html += hwCardHtml(subject, item, { mySub: mySubmissions[item._id], mySubId: item._id, now }) + answersCardHtml(item);
     });
     return html;
   });

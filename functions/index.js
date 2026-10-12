@@ -10,3 +10,7 @@ exports.onSubmissionCreated = homework.onSubmissionCreated;
 const attendance = require("./attendance");
 exports.onOlcamAttendanceCreated = attendance.onOlcamAttendanceCreated;
 exports.onOledxAttendanceCreated = attendance.onOledxAttendanceCreated;
+
+// Fix Groups panel: when a submission's group is changed, move its file into the new group's folder
+const groupFolders = require("./groupFolders");
+exports.onSubmissionGroupChanged = groupFolders.onSubmissionGroupChanged;

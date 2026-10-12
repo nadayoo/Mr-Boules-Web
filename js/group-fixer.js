@@ -203,9 +203,23 @@ export async function gfApply() {
   await loadStudent(student);
   renderDetail(
     (failed ? `${failed} record(s) could not be changed (check your Firestore rules). ` : '') +
-    `Done. The student sees Group ${esc(target)} after refreshing. Files still in the old folder are marked in red above; ` +
-    `to move them run: <code>node functions/move-submissions.js --subject olcam --reconcile</code> (dry run first).`
+    `Done. The student sees Group ${esc(target)} after refreshing. Their files are being moved into the new group's ` +
+    `folder automatically (a few seconds).`
   );
+
+  // Check again shortly, so the "Folder" column shows the result
+  setTimeout(async () => {
+    if (!current || current.student.email !== student.email) return;   // admin moved on to someone else
+    await loadStudent(student);
+    const stillOff = current.subs.some((s) => {
+      const post = posts.find((p) => p._id === s.postId) || { title: s.data.homeworkTitle };
+      const g = (s.data.group ? String(s.data.group).toLowerCase() : '') || groupOf(post);
+      return folderGroupOf(s.data.path) !== g;
+    });
+    renderDetail(stillOff
+      ? `Some files are still moving. If they stay red, run: <code>node functions/move-submissions.js --subject olcam --reconcile</code>`
+      : 'All files are in the right folders.');
+  }, 7000);
 }
 
 window.openGroupFixer = openGroupFixer;
