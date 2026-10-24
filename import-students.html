@@ -255,13 +255,14 @@ omar@gmail.com,A1C45,olcam,oledx,mechanics</textarea>
 
             try {
                 const docRef = db.collection('students').doc(email);
-                await docRef.set({
-                    email,
-                    id,
-                    subjects: [...new Set(subjects)],
-                    createdAt: new Date().toISOString()
-                });
-                log(`✓ ${email} → ${subjects.join(', ')}`, 'ok');
+                const snap = await docRef.get();
+                const isNew = !snap.exists || !snap.data().createdAt;
+                const data = { email, id, subjects: [...new Set(subjects)] };
+                // The join date is only set the FIRST time. Re-importing a student keeps their original date
+                // (the Missed Lessons panel uses it so new students aren't blamed for lessons before they joined).
+                if (isNew) data.createdAt = new Date().toISOString();
+                await docRef.set(data, { merge: true });
+                log(`✓ ${email} → ${subjects.join(', ')}${isNew ? '' : ' (already existed, join date kept)'}`, 'ok');
                 success++;
             } catch (e) {
                 log(`✗ Failed ${email}: ${e.message}`, 'err');

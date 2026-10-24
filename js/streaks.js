@@ -26,6 +26,30 @@ export function subjectsOf(data) {
   return out;
 }
 
+// When the student was added to the portal. A field called joinedAt (set by hand) wins over the automatic ones.
+const JOIN_FIELDS = ['joinedAt', 'createdAt', 'importedAt', 'addedAt', 'created', 'imported'];
+export function joinedAtOf(data) {
+  for (const f of JOIN_FIELDS) {
+    const v = data && data[f];
+    if (v === undefined || v === null || v === '') continue;
+    let ms = null;
+    if (typeof v.toMillis === 'function') ms = v.toMillis();                          // Firestore Timestamp
+    else if (typeof v === 'object' && typeof v.seconds === 'number') ms = v.seconds * 1000;
+    else if (typeof v === 'number') ms = v < 1e11 ? v * 1000 : v;
+    else { const t = new Date(v).getTime(); if (!isNaN(t)) ms = t; }
+    if (ms !== null && !isNaN(ms)) return ms;
+  }
+  return null;
+}
+
+// The deadline that applies to a student of group g for one lesson:
+// a number, null (no deadline set), or undefined (posted for other groups only - skip the lesson)
+function deadlineFor(e, g) {
+  if (g && e.byGroup[g] && e.byGroup[g].length) return maxOf(e.byGroup[g]);
+  if (g && e.groups.size > 0 && !e.groupless) return undefined;
+  return maxOf(e.deadlines);
+}
+
 const lc = (e) => String(e || '').trim().toLowerCase();
 const maxOf = (a) => (a.length ? Math.max(...a) : null);
 
@@ -149,24 +173,35 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
     const g = topKey(groupVotes[s.email] || {});
 
     // homework
+    // Lessons whose deadline was already over when the student joined do not count for them
+    // (and neither does the attendance of those lessons).
+    const joined = joinedAtOf(s.raw);
+    let cutoff = 0;
+    if (joined !== null) {
+      for (const [Ls, e] of Object.entries(hw)) {
+        const dl = deadlineFor(e, g);
+        if (dl !== undefined && dl !== null && dl <= joined) cutoff = Math.max(cutoff, Number(Ls));
+      }
+    }
+
     const hwLessons = [];
     for (const [Ls, e] of Object.entries(hw)) {
-      let dl;
-      if (g && e.byGroup[g] && e.byGroup[g].length) dl = maxOf(e.byGroup[g]);
-      else if (g && e.groups.size > 0 && !e.groupless) continue;        // posted for other groups, not this one yet
-      else dl = maxOf(e.deadlines);
-      if (dl !== null && dl < now) hwLessons.push(Number(Ls));          // deadline passed
+      if (Number(Ls) <= cutoff) continue;                               // before they joined
+      const dl = deadlineFor(e, g);
+      if (dl === undefined) continue;                                   // posted for other groups, not this one yet
+      if (dl !== null && dl < now) hwLessons.push(Number(Ls));          // THEIR group's deadline has passed
     }
     hwLessons.sort((a, b) => a - b);
     const mySubmitted = submittedLessons[s.email] || new Set();
     const hwAck = (acks.homework || {})[s.email];
     const hwRun = trailingRun(afterReset(hwLessons, hwAck), (L) => !mySubmitted.has(L));
     const hwLevel = levelFor(hwRun, hwAck);
-    if (hwLevel) homework.push({ id: s.id, email: s.email, run: hwRun, count: hwRun.length, last: hwRun[hwRun.length - 1], level: hwLevel });
+    if (hwLevel) homework.push({ id: s.id, email: s.email, group: g, run: hwRun, count: hwRun.length, last: hwRun[hwRun.length - 1], level: hwLevel });
 
     // attendance
     const attLessons = [];
     for (const [Ls, e] of Object.entries(att)) {
+      if (Number(Ls) <= cutoff) continue;                                          // before they joined
       if (g && e.groups.size > 0 && !e.groups.has(g) && !e.groupless) continue;   // their group's session not uploaded
       attLessons.push(Number(Ls));
     }
@@ -174,7 +209,7 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
     const attAck = (acks.attendance || {})[s.email];
     const attRun = trailingRun(afterReset(attLessons, attAck), (L) => !att[L].present.has(s.email));
     const attLevel = levelFor(attRun, attAck);
-    if (attLevel) attendance_.push({ id: s.id, email: s.email, run: attRun, count: attRun.length, last: attRun[attRun.length - 1], level: attLevel });
+    if (attLevel) attendance_.push({ id: s.id, email: s.email, group: g, run: attRun, count: attRun.length, last: attRun[attRun.length - 1], level: attLevel });
   }
 
   const order = (a, b) =>

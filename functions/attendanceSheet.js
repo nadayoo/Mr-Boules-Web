@@ -18,6 +18,24 @@ function columnToLetter(col) {
   return letter;
 }
 
+// Safety net: before adding a student who is not in this tab yet, check their subject.
+// Returns Map(email -> { id, subjects:Set }) for the emails found in the "students" collection.
+async function lookupStudents(emails) {
+  const found = new Map();
+  const db = admin.firestore();
+  for (let i = 0; i < emails.length; i += 25) {
+    const chunk = emails.slice(i, i + 25);
+    const snaps = await Promise.all(chunk.map((e) => db.collection("students").doc(e).get()));
+    snaps.forEach((s, k) => {
+      if (!s.exists) return;
+      const d = s.data() || {};
+      const subjects = new Set((Array.isArray(d.subjects) ? d.subjects : []).map((x) => String(x).toLowerCase()));
+      found.set(chunk[k], { id: String(d.id || "").trim(), subjects });
+    });
+  }
+  return found;
+}
+
 async function handleAttendanceCreated(snap, context) {
   const { subject } = context.params;
   const tabName = SUBJECT_TO_ATTENDANCE_TAB[subject];
@@ -56,7 +74,7 @@ async function handleAttendanceCreated(snap, context) {
 
   let rows = response.data.values || [];
   if (rows.length === 0) {
-    rows = [["Name", "Email", "", "Student ID"]];
+    rows = [["Name", "Email", "Student ID"]];
   }
 
   const header = rows[0];
@@ -77,9 +95,9 @@ async function handleAttendanceCreated(snap, context) {
 
   const colLetter = columnToLetter(colIndex + 1);
   const updates = [];
-  const newRowsToAppend = [];
+  const missing = [];
 
-  // Process all matched emails in batch
+  // Students already in the tab get their cell marked; the rest are collected
   for (const emailRaw of presentEmails) {
     const targetEmail = emailRaw.toString().trim().toLowerCase();
     if (!targetEmail) continue;
@@ -102,13 +120,32 @@ async function handleAttendanceCreated(snap, context) {
         range: `${tabName}!${colLetter}${rowNumber}`,
         values: [["Attended"]],
       });
-    } else {
+    } else if (!missing.includes(targetEmail)) {
+      missing.push(targetEmail);
+    }
+  }
+
+  // Not in the tab yet: only add them if they really belong to this subject
+  const newRowsToAppend = [];
+  const skipped = [];
+  if (missing.length) {
+    const students = await lookupStudents(missing);
+    for (const email of missing) {
+      const st = students.get(email);
+      if (st && st.subjects.size > 0 && !st.subjects.has(subject)) {
+        skipped.push(email);                                   // e.g. an Edexcel student in the Cambridge upload
+        continue;
+      }
       const rowLen = Math.max(header.length, 4);
       const newRow = new Array(rowLen).fill("");
-      newRow[1] = targetEmail;
+      newRow[1] = email;
+      newRow[2] = st && st.id ? st.id : "";                    // column C = Student ID
       newRow[colIndex] = "Attended";
       newRowsToAppend.push(newRow);
     }
+  }
+  if (skipped.length) {
+    console.log(`Not added to "${tabName}" (not in ${subject}): ${skipped.join(", ")}`);
   }
 
   // Execute updates in batch
@@ -122,7 +159,7 @@ async function handleAttendanceCreated(snap, context) {
     });
   }
 
-  // Append any unlisted students
+  // Append any unlisted students who belong here
   if (newRowsToAppend.length > 0) {
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,

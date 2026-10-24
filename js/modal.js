@@ -702,6 +702,9 @@ export async function submitReplacement(subject, homeworkId, deadlineId) {
 
 export function closeModal() {
   document.getElementById('overlay').classList.remove('open');
+  // The Missed Lessons panel makes the window wider; put it back to normal for other pop-ups
+  const m = document.getElementById('modal');
+  if (m) { m.style.width = ''; m.style.maxWidth = ''; m.style.maxHeight = ''; m.style.overflowY = ''; }
 }
 
 export function openModal() {
