@@ -50,6 +50,8 @@ function deadlineFor(e, g) {
   return maxOf(e.deadlines);
 }
 
+export const NEVER = '__never__';      // tabGroup value for "never submitted" / "never attended"
+
 const lc = (e) => String(e || '').trim().toLowerCase();
 const maxOf = (a) => (a.length ? Math.max(...a) : null);
 
@@ -118,6 +120,10 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
   // ---------- submissions: lessons per student (any group counts) ----------
   const submittedLessons = {};
   const groupVotes = {};
+  const submitVotes = {};                           // group votes from SUBMISSIONS only (the Homework tab's groups)
+  const attVotes = {};                              // group votes from ATTENDANCE only (the Attendance tab's groups)
+  const submittedEmails = new Set();                // ever submitted any homework
+  const attendedEmails = new Set();                 // ever present at any session
   const vote = (email, g) => {
     if (!g) return;
     groupVotes[email] = groupVotes[email] || {};
@@ -127,15 +133,19 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
   for (const s of submissions) {
     const email = lc(s.email);
     if (!email) continue;
+    submittedEmails.add(email);
     const L = postLesson[s.homeworkId] ?? lessonOf({ title: s.homeworkTitle });
     if (L !== null && L !== undefined) (submittedLessons[email] = submittedLessons[email] || new Set()).add(L);
-    vote(email, lc(s.group) || groupOf({ title: s.homeworkTitle }));
+    const sg = lc(s.group) || groupOf({ title: s.homeworkTitle });
+    vote(email, sg);
+    if (sg) { submitVotes[email] = submitVotes[email] || {}; submitVotes[email][sg] = (submitVotes[email][sg] || 0) + 1; }
     activeEmails.add(email);
   }
 
   // ---------- attendance ----------
   const att = {};                                   // lesson -> { groups:Set, groupless, present:Set }
   for (const a of attendance) {
+    for (const raw of a.presentEmails || []) { const em = lc(raw); if (em) attendedEmails.add(em); }
     const L = lessonOf({ title: a.title });
     if (L === null) continue;
     const e = (att[L] = att[L] || { groups: new Set(), groupless: false, present: new Set() });
@@ -146,6 +156,7 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
       if (!email) continue;
       e.present.add(email);
       vote(email, g);
+      if (g) { attVotes[email] = attVotes[email] || {}; attVotes[email][g] = (attVotes[email][g] || 0) + 1; }
       activeEmails.add(email);
     }
   }
@@ -171,6 +182,12 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
 
   for (const s of roster) {
     const g = topKey(groupVotes[s.email] || {});
+    // Tabs in the panel. Homework and attendance are kept completely apart here:
+    //   Homework tab   -> the group on the student's homework submissions, or NEVER if they never submitted
+    //   Attendance tab -> the group of the sessions they attended, or NEVER if they never attended
+    // ('g' above, which mixes both, is only used to pick the right deadline / session for the counting)
+    const hwTabGroup = submittedEmails.has(s.email) ? topKey(submitVotes[s.email] || {}) : NEVER;
+    const attTabGroup = attendedEmails.has(s.email) ? topKey(attVotes[s.email] || {}) : NEVER;
 
     // homework
     // Lessons whose deadline was already over when the student joined do not count for them
@@ -196,7 +213,7 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
     const hwAck = (acks.homework || {})[s.email];
     const hwRun = trailingRun(afterReset(hwLessons, hwAck), (L) => !mySubmitted.has(L));
     const hwLevel = levelFor(hwRun, hwAck);
-    if (hwLevel) homework.push({ id: s.id, email: s.email, group: g, run: hwRun, count: hwRun.length, last: hwRun[hwRun.length - 1], level: hwLevel });
+    if (hwLevel) homework.push({ id: s.id, email: s.email, group: g, tabGroup: hwTabGroup, run: hwRun, count: hwRun.length, last: hwRun[hwRun.length - 1], level: hwLevel });
 
     // attendance
     const attLessons = [];
@@ -209,7 +226,7 @@ export function computeStreaks({ subject, students, posts, submissions, attendan
     const attAck = (acks.attendance || {})[s.email];
     const attRun = trailingRun(afterReset(attLessons, attAck), (L) => !att[L].present.has(s.email));
     const attLevel = levelFor(attRun, attAck);
-    if (attLevel) attendance_.push({ id: s.id, email: s.email, group: g, run: attRun, count: attRun.length, last: attRun[attRun.length - 1], level: attLevel });
+    if (attLevel) attendance_.push({ id: s.id, email: s.email, group: g, tabGroup: attTabGroup, run: attRun, count: attRun.length, last: attRun[attRun.length - 1], level: attLevel });
   }
 
   const order = (a, b) =>

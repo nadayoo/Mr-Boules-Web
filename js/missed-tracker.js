@@ -42,11 +42,13 @@ function adminName() {
 }
 
 // ---- Cambridge groups ----
-// streaks.js works out each student's group (from their homework submissions and attendance) and puts it on the row.
-// Students with no group on any submission or attendance record go in the "No group yet" tab.
-const GROUP_NONE = '__none__';
+// Homework tab: a student's group is the one on their homework submissions; students who never submitted
+// go in "Never submitted". Attendance tab: the group of the sessions they attended; students who never attended
+// go in "Never attended". The two tabs do not look at each other (streaks.js sets row.tabGroup).
+const GROUP_NONE = '__never__';
 const normG = (g) => String(g == null ? '' : g).trim().toLowerCase();
-const groupFor = (r) => normG(r.group);
+const groupFor = (r) => normG(r.tabGroup);
+const neverLabel = () => (view.tab === 'homework' ? 'Never submitted' : 'Never attended');
 
 const FONT = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
 const freshView = () => ({
@@ -233,13 +235,14 @@ function whatsappHtml(r) {
 function groupNote(r) {
   if (!usesGroups(view.subject) || view.group !== 'all') return '';
   const g = groupFor(r);
-  return ` · ${g ? 'Group ' + esc(g) : 'No group yet'}`;
+  if (g === GROUP_NONE) return ` · ${neverLabel()}`;
+  return g ? ` · Group ${esc(g)}` : '';
 }
 
 function groupTabsHtml(rows) {
   const counts = {};
   let none = 0;
-  for (const x of rows) { const g = groupFor(x); if (g) counts[g] = (counts[g] || 0) + 1; else none++; }
+  for (const x of rows) { const g = groupFor(x); if (g === GROUP_NONE) none++; else if (g) counts[g] = (counts[g] || 0) + 1; }
   const known = GROUPS.map(normG);
   const extra = Object.keys(counts).filter((g) => !known.includes(g)).sort();
   const btn = (key, label, n) => `
@@ -249,7 +252,7 @@ function groupTabsHtml(rows) {
     + btn('all', 'All', rows.length)
     + GROUPS.map((g) => btn(normG(g), `Group ${esc(g)}`, counts[normG(g)] || 0)).join('')
     + extra.map((g) => btn(g, `Group ${esc(g)}`, counts[g])).join('')
-    + btn(GROUP_NONE, 'No group yet', none)
+    + btn(GROUP_NONE, neverLabel(), none)
     + `</div>`;
 }
 
@@ -292,7 +295,7 @@ function render() {
     + (grouped ? groupTabsHtml(rows) : '');
 
   const inGroup = (x) => !grouped || view.group === 'all'
-    || (view.group === GROUP_NONE ? !groupFor(x) : groupFor(x) === view.group);
+    || groupFor(x) === view.group;
   const visible = rows.filter(inGroup);
   const contact = visible.filter((x) => x.level === 'contact');
   const warn = visible.filter((x) => x.level === 'warn');
@@ -301,7 +304,7 @@ function render() {
   notes.push(`${r.meta.checked} students checked.`);
   if (r.meta.noSubject) notes.push(`${r.meta.noSubject} students have no subject set and were skipped.`);
   if (r.meta.rosterFallback) notes.push("Couldn't read a subject from the student records, so only students with homework or attendance in this subject are checked.");
-  if (grouped) notes.push("A student's group comes from their homework submissions and attendance.");
+  if (grouped) notes.push("Homework tab: the group is the one on the student's homework submissions. Attendance tab: the group of the sessions they attended. Students who have never submitted / never attended have their own tab.");
   if (view.tab === 'attendance') notes.push("A student whose ID didn't match when attendance was uploaded counts as absent.");
   if (view.tab === 'homework') notes.push('A lesson counts once its deadline has passed. Any group counts as a submission.');
 

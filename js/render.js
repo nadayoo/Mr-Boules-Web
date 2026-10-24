@@ -81,23 +81,51 @@ export function renderAnnouncements(subject, data) {
 // One homework per LESSON is required (each group gets its own post), so a
 // lesson counts as done if the student submitted ANY homework from it.
 // Returns true if none of the last 3 lessons has a submission.
-function missedLastThreeLessons(data, mySubmissions) {
-  const lessonKey = (item) => {
-    const m = String(item.title || '').match(/(?:Lesson|Lecture|Session)\s*(\d+)/i);
-    return m ? `lesson-${parseInt(m[1], 10)}` : `single-${item._id}`;
-  };
+//
+// Only lessons that are fair to count are looked at:
+//   - the deadline (of the student's OWN group) has already passed, so nothing "due tomorrow" counts;
+//   - the deadline was NOT already over when the student joined (state.joinedAt, from createdAt / joinedAt
+//     on their record), so a new student is not blamed for lessons before they arrived.
+function missedLastThreeLessons(data, mySubmissions, subject) {
+  const now = Date.now();
+  const joined = state.joinedAt || null;
+  const myGroup = usesGroups(subject) ? (inferGroup(data, mySubmissions) || getMyGroup(state.userEmail) || '') : '';
+
+  const byKey = {};
   const lessons = [];   // newest first
-  const seen = {};
   for (const item of data) {
-    const key = lessonKey(item);
-    if (!(key in seen)) {
-      seen[key] = { submitted: false };
-      lessons.push(seen[key]);
+    const m = String(item.title || '').match(/(?:Lesson|Lecture|Session)\s*(\d+)/i);
+    const key = m ? `lesson-${parseInt(m[1], 10)}` : `single-${item._id}`;
+    if (!byKey[key]) {
+      byKey[key] = { submitted: false, byGroup: {}, groups: new Set(), groupless: false, deadlines: [] };
+      lessons.push(byKey[key]);
     }
-    if (mySubmissions[item._id]) seen[key].submitted = true;
+    const L = byKey[key];
+    if (mySubmissions[item._id]) L.submitted = true;
+    const dl = item.deadline ? new Date(item.deadline).getTime() : NaN;
+    const g = groupOf(item);
+    if (g) {
+      L.groups.add(g);
+      if (!isNaN(dl)) (L.byGroup[g] = L.byGroup[g] || []).push(dl);
+    } else {
+      L.groupless = true;
+    }
+    if (!isNaN(dl)) L.deadlines.push(dl);
   }
-  const lastThree = lessons.slice(0, 3);
-  return lastThree.length >= 3 && lastThree.every(l => !l.submitted);
+
+  const counted = lessons.filter((L) => {
+    let dl;
+    if (myGroup && L.byGroup[myGroup] && L.byGroup[myGroup].length) dl = Math.max(...L.byGroup[myGroup]);
+    else if (myGroup && L.groups.size > 0 && !L.groupless) return false;     // posted for other groups, not theirs yet
+    else dl = L.deadlines.length ? Math.max(...L.deadlines) : null;
+    if (dl === null) return false;                                             // no deadline set
+    if (dl >= now) return false;                                               // not due yet
+    if (joined && dl <= joined) return false;                                  // over before they joined
+    return true;
+  });
+
+  const lastThree = counted.slice(0, 3);
+  return lastThree.length >= 3 && lastThree.every((l) => !l.submitted);
 }
 
 // Homework answers attached to a post. Students only get the links once the deadline has passed
@@ -333,7 +361,7 @@ export async function renderHomework(subject, data) {
 
   let warningHtml = '';
   if (!state.isAdmin) {
-    if (missedLastThreeLessons(data, mySubmissions)) {
+    if (missedLastThreeLessons(data, mySubmissions, subject)) {
       warningHtml = `
         <div style="background:var(--rust-dim); border:1px solid var(--rust-line); color:var(--rust);
                     padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13.5px;">

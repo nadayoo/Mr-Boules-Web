@@ -1,12 +1,14 @@
 import { db, ADMINS, ALL_SUBJECTS, ACTIVE_SUBJECTS, toast } from './config.js';
 import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { buildHub, startListeners, loadStudentProgress } from './hub.js';
+import { joinedAtOf } from './streaks.js';
 
 export let state = {
   isAdmin: false,
   userSubjects: [],
   studentProgress: {},
-  userEmail: ''
+  userEmail: '',
+  joinedAt: null          // when this student joined (ms), from createdAt / joinedAt on their record
 };
 
 export function validateID(id) {
@@ -50,6 +52,7 @@ export async function doLogin() {
     if (snap.exists() && snap.data().id === id) {
       state.isAdmin = false;
       state.userEmail = email;
+      state.joinedAt = joinedAtOf(snap.data());
       const raw = snap.data().subjects || ACTIVE_SUBJECTS;
       state.userSubjects = ACTIVE_SUBJECTS.filter(s => raw.includes(s));
       if (state.userSubjects.length === 0) state.userSubjects = ACTIVE_SUBJECTS;
@@ -83,7 +86,7 @@ export async function enterHub(email) {
 }
 
 export function doLogout() {
-  state.isAdmin = false; state.userSubjects = []; state.studentProgress = {}; state.userEmail = '';
+  state.isAdmin = false; state.userSubjects = []; state.studentProgress = {}; state.userEmail = ''; state.joinedAt = null;
   document.getElementById('hub-screen').style.display   = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-email').value = '';
