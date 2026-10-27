@@ -1,7 +1,7 @@
 import { esc, toast, db } from './config.js';
 import { state } from './auth.js';
 import { GROUPS, usesGroups, groupOf, cleanLessonTitle, groupLessons, inferGroup, getMyGroup, setMyGroup, cacheHomework, getCachedHomework } from './groups.js';
-import { doc, setDoc, deleteDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, setDoc, deleteDoc, getDoc, getDocs, collection, query, where, documentId, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // Week starting from Friday
 const WEEK_ORDER_FRIDAY = [
@@ -335,6 +335,37 @@ function waitingCardHtml(subject, lesson, myGroup, changeLink) {
     `;
 }
 
+// The student's own submissions, in ONE query instead of one read per homework post (all groups).
+// Document ids are "<email>_<homeworkId>". The result is kept for a few minutes and is dropped whenever the
+// student submits, replaces or deletes a file (those all call window.rerenderHomework).
+let subsCache = null;   // { email, at, byId }
+const SUBS_CACHE_MS = 10 * 60 * 1000;
+
+async function loadMySubmissions(data) {
+  const email = state.userEmail;
+  const out = {};
+  const pick = (byId) => { for (const item of data) if (byId[item._id]) out[item._id] = byId[item._id]; return out; };
+
+  if (subsCache && subsCache.email === email && Date.now() - subsCache.at < SUBS_CACHE_MS) return pick(subsCache.byId);
+
+  const prefix = `${email}_`;
+  try {
+    const q = query(collection(db, 'submissions'), where(documentId(), '>=', prefix), where(documentId(), '<', prefix + '\uf8ff'));
+    const snap = await getDocs(q);
+    const byId = {};
+    snap.forEach((d) => { if (d.id.startsWith(prefix)) byId[d.id.slice(prefix.length)] = d.data(); });
+    subsCache = { email, at: Date.now(), byId };
+    return pick(byId);
+  } catch (e) {
+    console.warn('Could not list submissions, checking the posts one by one', e);
+    for (const item of data) {
+      const snap = await getDoc(doc(db, 'submissions', `${email}_${item._id}`));
+      if (snap.exists()) out[item._id] = snap.data();
+    }
+    return out;
+  }
+}
+
 export async function renderHomework(subject, data) {
   const el = document.getElementById(`list-${subject}-homework`);
   if (!el) return;
@@ -349,11 +380,7 @@ export async function renderHomework(subject, data) {
   let mySubmissions = {};
   if (!state.isAdmin) {
     try {
-      for (const item of data) {
-        const subRef = doc(db, 'submissions', `${state.userEmail}_${item._id}`);
-        const snap = await getDoc(subRef);
-        if (snap.exists()) mySubmissions[item._id] = snap.data();
-      }
+      mySubmissions = await loadMySubmissions(data);
     } catch (e) {
       console.error('Error loading submissions', e);
     }
@@ -641,6 +668,7 @@ window.toggleHomework = async (homeworkId, isDone) => {
 
 // ---- Group selection helpers (homework) ----
 window.rerenderHomework = (subject) => {
+  subsCache = null;            // something may have changed (a submission, a delete, a group choice)
   const cached = getCachedHomework(subject);
   if (cached) renderHomework(subject, cached);
 };

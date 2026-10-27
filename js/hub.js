@@ -1,5 +1,5 @@
 import { db, SUBJECT_META, SECTIONS, SECTION_META, toast } from './config.js';
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, onSnapshot, query, orderBy, where, documentId, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state } from './auth.js';
 import { RENDERERS } from './render.js';
 import { openAdd } from './modal.js';
@@ -54,22 +54,31 @@ export function buildSubjectPanel(subject) {
 export function setSubject(subject) {
   document.querySelectorAll('.subject-tab').forEach(t => t.classList.toggle('active', t.dataset.subject === subject));
   document.querySelectorAll('.subject-panel').forEach(p => p.classList.toggle('active', p.dataset.subjectPanel === subject));
+  startSubject(subject);
 }
 
 export async function loadStudentProgress(email) {
   state.studentProgress = {};
   if (state.isAdmin) return;
+  const prefix = email + '_';
   try {
-    const q = query(collection(db, 'progress'));
+    // Document ids are "<email>_<homeworkId>", so ask only for this student's rows
+    // instead of downloading everyone's progress at every login.
+    const q = query(collection(db, 'progress'), where(documentId(), '>=', prefix), where(documentId(), '<', prefix + '\uf8ff'));
     const snap = await getDocs(q);
     snap.forEach(d => {
-      if (d.id.startsWith(email + '_')) {
-        const homeworkId = d.id.replace(email + '_', '');
-        state.studentProgress[homeworkId] = true;
-      }
+      if (d.id.startsWith(prefix)) state.studentProgress[d.id.slice(prefix.length)] = true;
     });
   } catch (e) {
-    console.error("Error loading progress", e);
+    console.error("Error loading progress, trying the full list", e);
+    try {
+      const snap = await getDocs(query(collection(db, 'progress')));
+      snap.forEach(d => {
+        if (d.id.startsWith(prefix)) state.studentProgress[d.id.slice(prefix.length)] = true;
+      });
+    } catch (e2) {
+      console.error("Error loading progress", e2);
+    }
   }
 }
 
@@ -89,21 +98,48 @@ function refresh(key, force = false) {
   RENDERERS[section](subject, list);
 }
 
+// Admins listen to everything at once (there are only a few of them). Students only listen to the tab they
+// are looking at, plus Homework (almost everyone opens it); the other tabs start the first time they are opened.
+// A running listener keeps updating live, exactly as before.
+const EAGER_SECTIONS = ['homework'];
+let unsubs = [];
+let started = {};
+
+function listen(subject, section) {
+  const key = `${subject}_${section}`;
+  if (started[key]) return;
+  started[key] = true;
+  const q = query(collection(db, key), orderBy('createdAt', 'desc'));
+  unsubs.push(onSnapshot(q, snap => {
+    store[key] = {
+      subject,
+      section,
+      items: snap.docs.map(d => ({ _id: d.id, ...d.data() }))
+    };
+    refresh(key, true);
+  }));
+}
+
+// The tab that is showing when a subject panel opens, and the ones everybody uses
+function startSubject(subject) {
+  if (state.isAdmin) return;
+  listen(subject, SECTIONS[0]);
+  EAGER_SECTIONS.forEach(sec => { if (SECTIONS.includes(sec)) listen(subject, sec); });
+}
+
 export function startListeners() {
-  state.userSubjects.forEach(subject => {
-    SECTIONS.forEach(section => {
-      const key = `${subject}_${section}`;
-      const q = query(collection(db, key), orderBy('createdAt', 'desc'));
-      onSnapshot(q, snap => {
-        store[key] = {
-          subject,
-          section,
-          items: snap.docs.map(d => ({ _id: d.id, ...d.data() }))
-        };
-        refresh(key, true);
-      });
-    });
-  });
+  // a second login in the same page must not stack listeners on top of the old ones
+  unsubs.forEach(u => { try { u(); } catch (e) {} });
+  unsubs = [];
+  started = {};
+  Object.keys(store).forEach(k => delete store[k]);
+  Object.keys(lastSig).forEach(k => delete lastSig[k]);
+
+  if (state.isAdmin) {
+    state.userSubjects.forEach(subject => SECTIONS.forEach(section => listen(subject, section)));
+  } else if (state.userSubjects.length) {
+    startSubject(state.userSubjects[0]);
+  }
 
   // Every 30s, check if a scheduled post has just become due
   if (!tickTimer) {
@@ -134,6 +170,7 @@ document.addEventListener('click', (e) => {
   if (!tabBtn) return;
   const subject = tabBtn.dataset.subject;
   const section = tabBtn.dataset.section;
+  if (!state.isAdmin) listen(subject, section);
   const panel = document.getElementById('panel-' + subject);
   panel.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   tabBtn.classList.add('active');

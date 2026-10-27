@@ -56,6 +56,10 @@ const freshView = () => ({
   acks: { homework: {}, attendance: {} }, sent: {}, msg: '', imp: null, contacts: loadContacts(),
 });
 let studentsCache = null;
+// What the panel loaded for each subject (posts, attendance, submissions, ticks), kept for a few minutes so
+// opening the panel again does not re-read everything. "Refresh" skips it, and uploading attendance clears it.
+const CACHE_MS = 3 * 60 * 1000;
+let dataCache = {};
 let view = freshView();
 
 const el = (id) => document.getElementById(id);
@@ -164,7 +168,7 @@ async function loadAcks(subject) {
   }
 }
 
-async function load() {
+async function load(force = false) {
   const body = el('mt-body');
   if (!body) return;
   view.mode = 'list';
@@ -178,25 +182,31 @@ async function load() {
       studentsCache = [];
       snap.forEach((d) => studentsCache.push(d.data()));
     }
-    const [postSnap, attSnap] = await Promise.all([
-      getDocs(collection(db, `${subject}_homework`)),
-      getDocs(collection(db, `${subject}_attendance`)),
-    ]);
-    const posts = [];
-    postSnap.forEach((d) => posts.push({ _id: d.id, ...d.data() }));
-    const attendance = [];
-    attSnap.forEach((d) => attendance.push(d.data()));
+    let data = dataCache[subject];
+    if (force || !data || Date.now() - data.at > CACHE_MS) {
+      const [postSnap, attSnap] = await Promise.all([
+        getDocs(collection(db, `${subject}_homework`)),
+        getDocs(collection(db, `${subject}_attendance`)),
+      ]);
+      const posts = [];
+      postSnap.forEach((d) => posts.push({ _id: d.id, ...d.data() }));
+      const attendance = [];
+      attSnap.forEach((d) => attendance.push(d.data()));
 
-    const roster = studentsCache.filter((s) => {
-      const subs = subjectsOf(s);
-      return !studentsCache.some((x) => subjectsOf(x).size) || subs.has(subject);
-    });
-    const submissions = await loadSubmissions(subject, roster, posts);
-    const { acks, ok } = await loadAcks(subject);
+      const roster = studentsCache.filter((s) => {
+        const subs = subjectsOf(s);
+        return !studentsCache.some((x) => subjectsOf(x).size) || subs.has(subject);
+      });
+      const submissions = await loadSubmissions(subject, roster, posts);
+      const { acks, ok } = await loadAcks(subject);
+      data = dataCache[subject] = { at: Date.now(), posts, attendance, submissions, acks, ackOk: ok };
+    }
+    const { posts, attendance, submissions, acks } = data;
 
-    view.acks = acks;
+    view.acks = acks;          // the same object as in the cache, so ticks made here are remembered
+    view.fetchedAt = data.at;
     view.sent = {};
-    view.msg = ok ? '' : "Couldn't load the ticks saved by other admins, so students already handled may still show.";
+    view.msg = data.ackOk ? '' : "Couldn't load the ticks saved by other admins, so students already handled may still show.";
     view.result = computeStreaks({ subject, students: studentsCache, posts, submissions, attendance, acks });
     render();
   } catch (e) {
@@ -307,6 +317,7 @@ function render() {
   if (grouped) notes.push("Homework tab: the group is the one on the student's homework submissions. Attendance tab: the group of the sessions they attended. Students who have never submitted / never attended have their own tab.");
   if (view.tab === 'attendance') notes.push("A student whose ID didn't match when attendance was uploaded counts as absent.");
   if (view.tab === 'homework') notes.push('A lesson counts once its deadline has passed. Any group counts as a submission.');
+  if (view.fetchedAt && Date.now() - view.fetchedAt > 60000) notes.push(`This list was loaded ${Math.round((Date.now() - view.fetchedAt) / 60000)} min ago. Press Refresh for the latest.`);
 
   const section = (title, list) => list.length
     ? `<div style="font-weight:600;font-size:13px;margin:12px 0 2px;">${title} (${list.length})</div>${list.map((x) => rowHtml(x, rows.indexOf(x))).join('')}`
@@ -343,12 +354,18 @@ export async function mtMark(idx, checked) {
       view.sent[key] = { field, prev };
     } else {
       const s = view.sent[key];
+      view.lastUntick = s;
       await setDoc(ref, {
         [field]: s && s.prev != null ? s.prev : deleteField(),
         updatedBy: who, updatedAt: serverTimestamp(),
       }, { merge: true });
       delete view.sent[key];
     }
+    // keep the cached ticks in step, so opening the panel again does not show this student again
+    const a = (view.acks[view.tab] = view.acks[view.tab] || {});
+    const cur = (a[r.email] = a[r.email] || {});
+    if (checked) cur[field] = r.last;
+    else { const s0 = view.lastUntick; if (s0 && s0.prev != null) cur[field] = s0.prev; else delete cur[field]; }
     view.msg = '';
   } catch (e) {
     console.error(e);
@@ -470,13 +487,15 @@ export function mtClearNumbers() {
 export async function mtSubject(subject) { view.subject = subject; view.group = 'all'; await load(); }
 export function mtGroup(key) { view.group = key; render(); }
 export function mtTab(tab) { view.tab = tab; render(); }
-export async function mtRefresh() { studentsCache = null; await load(); }
+export async function mtRefresh() { studentsCache = null; dataCache = {}; await load(true); }
+export function mtInvalidate() { dataCache = {}; }
 
 window.openMissedTracker = openMissedTracker;
 window.mtSubject = mtSubject;
 window.mtTab = mtTab;
 window.mtGroup = mtGroup;
 window.mtRefresh = mtRefresh;
+window.mtInvalidate = mtInvalidate;
 window.mtMark = mtMark;
 window.mtImport = mtImport;
 window.mtFile = mtFile;

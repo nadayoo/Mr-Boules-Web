@@ -229,6 +229,7 @@ export async function confirmAttendanceSave() {
       saved.push(`${SUBJECT_LABEL[sub]} ${b.emails.length}`);
     }
 
+    window.mtInvalidate?.();     // the Missed Lessons panel must not show a copy from before this upload
     document.getElementById('modal').innerHTML = summaryHtml(p, true) + `
       <div class="modal-footer"><button class="btn-primary" onclick="closeModal()">Done</button></div>`;
     toast(`Attendance saved: ${saved.join(', ')}`);
