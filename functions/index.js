@@ -14,3 +14,7 @@ exports.onOledxAttendanceCreated = attendance.onOledxAttendanceCreated;
 // Fix Groups panel: when a submission's group is changed, move its file into the new group's folder
 const groupFolders = require("./groupFolders");
 exports.onSubmissionGroupChanged = groupFolders.onSubmissionGroupChanged;
+
+// Same homework file submitted by two students: marks the later submission for the "Blank files" panel
+const duplicates = require("./duplicates");
+exports.onSubmissionWritten = duplicates.onSubmissionWritten;

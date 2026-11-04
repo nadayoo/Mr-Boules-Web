@@ -6,6 +6,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { closeModal } from './modal.js';
+import { subjectsOf } from './streaks.js';
 
 // Attendance upload. Whichever subject tab you upload from, each student is saved under THEIR OWN
 // subject(s): Cambridge students in Cambridge attendance, Edexcel students in Edexcel attendance.
@@ -16,12 +17,16 @@ const TRACKED = ['olcam', 'oledx'];
 
 let pending = null;      // the upload waiting for "Save"
 
-// First column of each line, quotes removed, header row skipped, duplicates removed
+// The student IDs in the file: first column of each line, quotes removed, header row skipped, duplicates removed.
+// Handles a file saved with a BOM, with old-Mac line ends, and a file where all the IDs are on ONE line.
 export function parseIds(rawText) {
+  const text = String(rawText || '').replace(/^\uFEFF/, '');
+  const lines = text.split(/\r\n|\r|\n/).filter((l) => l.trim() !== '');
+  const cells = lines.length === 1 ? lines[0].split(/[,;\t]+/) : lines.map((l) => l.split(/[,;\t]/)[0]);
   const seen = new Set();
   const out = [];
-  for (const line of String(rawText || '').split(/\r?\n/)) {
-    const id = line.split(',')[0].replace(/^["'\s]+|["'\s]+$/g, '').trim();
+  for (const raw of cells) {
+    const id = raw.replace(/^["'\s]+|["'\s]+$/g, '').trim();
     if (!id) continue;
     if (/^(student\s*)?id$/i.test(id)) continue;
     const key = id.toUpperCase();
@@ -32,27 +37,44 @@ export function parseIds(rawText) {
   return out;
 }
 
-// Sorts the CSV IDs into Cambridge / Edexcel by each student's own subjects
-export function buildPlan(ids, students, subject = null, countBoth = true) {
+// Does the student's record say anything about subjects at all? (the same fields streaks.js reads)
+const SUBJECT_FIELDS = ['subjects', 'subject', 'userSubjects', 'courses', 'course'];
+const hasSubjectInfo = (data) => SUBJECT_FIELDS.some((f) => {
+  const v = data && data[f];
+  return Array.isArray(v) ? v.length > 0 : !!v;
+});
+
+// Sorts the CSV IDs into Cambridge / Edexcel by each student's own subjects.
+// A subject is recognised the same way the Missed Lessons panel does it ("olcam", "Cambridge" ... "oledx", "Edexcel" ...).
+// Students whose record has NO subject at all are not dropped: they go where `unknownTo` says ('olcam' | 'oledx' | 'none').
+// counts: every ID in the file is in exactly one of these, so they always add up to the number of IDs.
+export function buildPlan(ids, students, subject = null, countBoth = true, unknownTo = subject) {
   const byId = {};
   for (const s of students) {
     const id = String(s.id || '').trim().toUpperCase();
     const email = String(s.email || '').trim().toLowerCase();
     if (!id || !email) continue;
-    const subjects = new Set((Array.isArray(s.subjects) ? s.subjects : []).map((x) => String(x).toLowerCase()));
-    byId[id] = { id, email, subjects };
+    byId[id] = { id, email, subjects: subjectsOf(s), known: hasSubjectInfo(s) };
   }
   const buckets = { olcam: { emails: [], ids: [] }, oledx: { emails: [], ids: [] } };
   const unlinked = [];
-  const other = [];
+  const other = [];            // have subjects, but not Cambridge or Edexcel (e.g. another course): never saved here
+  const unknown = [];          // no subject on their record
+  const counts = { total: ids.length, onlyCam: 0, onlyEdx: 0, both: 0, unknown: 0, neither: 0, unlinked: 0 };
   let bothCount = 0;          // students who are in BOTH Cambridge and Edexcel
   let otherOnly = 0;          // students who are ONLY in the other subject (a sign of a merged lesson)
   for (const raw of ids) {
     const st = byId[raw.toUpperCase()];
-    if (!st) { unlinked.push(raw.toUpperCase()); continue; }
+    if (!st) { unlinked.push(raw.toUpperCase()); counts.unlinked++; continue; }
     const mine = TRACKED.filter((sub) => st.subjects.has(sub));
-    if (!mine.length) { other.push({ id: st.id, email: st.email }); continue; }
-    if (mine.length === 2) bothCount++;
+    if (!mine.length) {
+      if (!st.known) {
+        unknown.push({ id: st.id, email: st.email }); counts.unknown++;
+        if (unknownTo === 'olcam' || unknownTo === 'oledx') { buckets[unknownTo].emails.push(st.email); buckets[unknownTo].ids.push(st.id); }
+      } else { other.push({ id: st.id, email: st.email }); counts.neither++; }
+      continue;
+    }
+    if (mine.length === 2) { bothCount++; counts.both++; } else if (mine[0] === 'olcam') counts.onlyCam++; else counts.onlyEdx++;
     if (subject && mine.length === 1 && mine[0] !== subject) otherOnly++;
     // A student in both subjects is only counted in BOTH tabs for a merged lesson.
     // For a one-subject lesson they stay in the tab you uploaded from, so the other subject
@@ -60,7 +82,7 @@ export function buildPlan(ids, students, subject = null, countBoth = true) {
     const targets = mine.length === 2 && subject && !countBoth ? [subject] : mine;
     for (const sub of targets) { buckets[sub].emails.push(st.email); buckets[sub].ids.push(st.id); }
   }
-  return { buckets, unlinked, other, bothCount, otherOnly };
+  return { buckets, unlinked, other, unknown, unknownTo, counts, bothCount, otherOnly };
 }
 
 const list = (arr, n = 40) => esc(arr.slice(0, n).join(', ')) + (arr.length > n ? ` … and ${arr.length - n} more` : '');
@@ -79,6 +101,11 @@ function summaryHtml(p, saved) {
   const ids = (arr) => `<div style="font-size:12px;color:var(--paper-text-faint);word-break:break-word;">${list(arr)}</div>`;
 
   let html = `<h2>${saved ? 'Attendance saved' : 'Check before saving'} <span>— ${esc(p.title)}</span></h2>`;
+  const c = plan.counts || {};
+  const parts = [[c.onlyCam, 'Cambridge'], [c.onlyEdx, 'Edexcel'], [c.both, 'in both'], [c.unknown, 'no subject on record'], [c.neither, 'other course'], [c.unlinked, 'not found']]
+    .filter(([n]) => n).map(([n, t]) => `${n} ${t}`);
+  html += `<div style="font-size:12.5px;color:var(--paper-text-faint);margin:2px 0 6px;">${c.total} IDs in the file: ${esc(parts.join(' · ') || 'none')}</div>`;
+  if (!saved) html += `<div style="background:#fff3cd;color:#7a5b00;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;margin:6px 0;">Not saved yet. Press “Save attendance” below.</div>`;
   if (here.emails.length) html += row(`${SUBJECT_LABEL[subject]}: ${here.emails.length} students`, '#2e7d32', ids(here.ids));
   else html += row(`${SUBJECT_LABEL[subject]}: none`, '#9a9288', `<div style="font-size:12px;color:var(--paper-text-faint);">None of these students are in ${SUBJECT_LABEL[subject]}.</div>`);
   if (there.emails.length) {
@@ -94,8 +121,16 @@ function summaryHtml(p, saved) {
            ${SUBJECT_LABEL[otherSub]}. Leave it unticked for a ${SUBJECT_LABEL[subject]}-only lesson.</span>
          </label>`;
   }
+  if (plan.unknown.length) {
+    const to = plan.unknownTo;
+    const choice = (key, label) => `<button class="${to === key ? 'btn-primary' : 'btn-cancel'}" style="padding:4px 10px;font-size:12px;margin-right:6px;" onclick="window.setUnknownAttendance('${key}')">${label}</button>`;
+    html += row(`${plan.unknown.length} student${plan.unknown.length === 1 ? ' has' : 's have'} no subject on their record`, '#8a6d1d',
+      `${ids(plan.unknown.map((o) => o.id))}<div style="margin-top:6px;font-size:12.5px;">${saved
+        ? (to === 'none' ? 'They were not saved.' : `They were saved in ${SUBJECT_LABEL[to]} attendance.`)
+        : `Save them in: ${choice('olcam', 'Cambridge')}${choice('oledx', 'Edexcel')}${choice('none', 'Nowhere')}`}</div>`);
+  }
   if (plan.other.length) {
-    html += row(`Not saved: ${plan.other.length} students are in neither Cambridge nor Edexcel`, '#b3261e', ids(plan.other.map((o) => o.id)));
+    html += row(`Not saved: ${plan.other.length} student${plan.other.length === 1 ? ' is' : 's are'} in another course (not Cambridge or Edexcel)`, '#b3261e', ids(plan.other.map((o) => o.id)));
   }
   if (plan.unlinked.length) {
     html += row(`${plan.unlinked.length} IDs didn't match any student`, '#8a6d1d', ids(plan.unlinked));
@@ -173,7 +208,8 @@ export async function handleAttendanceUpload(subject) {
 
     // It is a merged lesson if the file has students who are ONLY in the other subject
     const countBoth = buildPlan(ids, students, subject, true).otherOnly > 0;
-    pending = { subject, title: sessionTitle, date: sessionDate, ids, students, countBoth, plan: buildPlan(ids, students, subject, countBoth), saving: false };
+    pending = { subject, title: sessionTitle, date: sessionDate, ids, students, countBoth, unknownTo: subject, plan: null, saving: false };
+    pending.plan = buildPlan(ids, students, subject, countBoth, pending.unknownTo);
     renderSummary();
   } catch (err) {
     console.error('Attendance check error:', err);
@@ -197,7 +233,15 @@ function renderSummary() {
 export function toggleBothAttendance(checked) {
   if (!pending || pending.saving) return;
   pending.countBoth = !!checked;
-  pending.plan = buildPlan(pending.ids, pending.students, pending.subject, pending.countBoth);
+  pending.plan = buildPlan(pending.ids, pending.students, pending.subject, pending.countBoth, pending.unknownTo);
+  renderSummary();
+}
+
+// Where the students with no subject on their record are saved
+export function setUnknownAttendance(to) {
+  if (!pending || pending.saving) return;
+  pending.unknownTo = (to === 'olcam' || to === 'oledx') ? to : 'none';
+  pending.plan = buildPlan(pending.ids, pending.students, pending.subject, pending.countBoth, pending.unknownTo);
   renderSummary();
 }
 
@@ -223,6 +267,7 @@ export async function confirmAttendanceSave() {
         presentIds: b.ids,
         presentEmails: b.emails,
         unlinkedIds: unlinkedPlaced ? [] : p.plan.unlinked,
+        notSavedIds: unlinkedPlaced ? [] : [...p.plan.other, ...(p.plan.unknownTo === 'none' ? p.plan.unknown : [])].map((o) => o.id),   // students left out
         createdAt: serverTimestamp()
       });
       unlinkedPlaced = true;
@@ -247,8 +292,17 @@ export function cancelAttendanceUpload() {
   closeModal();
 }
 
+// Closing the preview (the Close button, clicking outside the window) would throw the upload away. Ask first.
+// modal.js calls this before it closes any window.
+window.beforeModalClose = () => {
+  if (!pending || pending.saving) return true;
+  if (window.confirm('This attendance is NOT saved yet. Close and lose it?')) { pending = null; return true; }
+  return false;
+};
+
 // Bind to window object for global usage across components
 window.handleAttendanceUpload = handleAttendanceUpload;
 window.confirmAttendanceSave = confirmAttendanceSave;
 window.cancelAttendanceUpload = cancelAttendanceUpload;
 window.toggleBothAttendance = toggleBothAttendance;
+window.setUnknownAttendance = setUnknownAttendance;

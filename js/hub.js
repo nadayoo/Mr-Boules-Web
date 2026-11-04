@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, orderBy, where, documentId, deleteDoc, d
 import { state } from './auth.js';
 import { RENDERERS } from './render.js';
 import { openAdd } from './modal.js';
+import './admin-sidebar.js';        // the admin-only side menu (does nothing for students)
 import { SCHEDULABLE, prepareList, listSignature } from './schedule.js';
 
 export function buildHub(subjects) {

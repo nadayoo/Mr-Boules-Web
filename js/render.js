@@ -1,6 +1,6 @@
 import { esc, toast, db } from './config.js';
 import { state } from './auth.js';
-import { GROUPS, usesGroups, groupOf, cleanLessonTitle, groupLessons, inferGroup, getMyGroup, setMyGroup, cacheHomework, getCachedHomework } from './groups.js';
+import { GROUPS, usesGroups, lessonOf, groupOf, cleanLessonTitle, groupLessons, inferGroup, getMyGroup, setMyGroup, cacheHomework, getCachedHomework } from './groups.js';
 import { doc, setDoc, deleteDoc, getDoc, getDocs, collection, query, where, documentId, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // Week starting from Friday
@@ -592,15 +592,27 @@ export function renderMarks(subject, data) {
   `;
 }
 
+// Attendance history, newest date first. The same day: the higher lesson first, then groups in order, then the newest upload.
+// (The list used to come in the order the records were uploaded, so an older lesson uploaded late sat above newer ones.)
+const attDate = (d) => { const t = Date.parse((d && d.date) || ''); return isNaN(t) ? 0 : t; };
+const attMadeAt = (d) => (d && d.createdAt && typeof d.createdAt.toMillis === 'function' ? d.createdAt.toMillis() : 0);
+export function sortAttendance(list) {
+  return [...list].sort((a, b) =>
+    attDate(b) - attDate(a) ||
+    (lessonOf(b) ?? -1) - (lessonOf(a) ?? -1) ||
+    String(groupOf(a)).localeCompare(String(groupOf(b)), undefined, { numeric: true }) ||
+    attMadeAt(b) - attMadeAt(a));
+}
+
 export function renderAttendance(subject, data) {
   const el = document.getElementById(`list-${subject}-attendance`);
   if (!el) return;
 
   const cleanUserEmail = (state.userEmail || '').toLowerCase().trim();
 
-  const filteredData = state.isAdmin
+  const filteredData = sortAttendance(state.isAdmin
     ? data
-    : data.filter(d => Array.isArray(d.presentEmails) && d.presentEmails.includes(cleanUserEmail));
+    : data.filter(d => Array.isArray(d.presentEmails) && d.presentEmails.includes(cleanUserEmail)));
 
   if (!filteredData.length) {
     el.innerHTML = `<div class="empty"><i class="ti ti-calendar-check"></i><p>No attendance records logged yet.</p></div>`;
@@ -625,6 +637,7 @@ export function renderAttendance(subject, data) {
             <div class="card-desc" style="margin-top:4px;font-size:12px;color:var(--paper-text-faint);">
               <strong>${item.presentEmails?.length || 0}</strong> students matched
               ${item.unlinkedIds?.length ? ` • <span style="color:var(--rust);">${item.unlinkedIds.length} unlinked IDs</span>` : ''}
+              ${item.notSavedIds?.length ? ` • <span style="color:var(--rust);">${item.notSavedIds.length} not saved (no Cambridge/Edexcel subject)</span>` : ''}
             </div>
           ` : ''}
         </div>

@@ -6,6 +6,7 @@ import {
   collection, getDocs, getDoc, doc, query, where, setDoc, deleteField, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state } from './auth.js';
+import './blank-tracker.js';        // adds the "Blank files" panel and its button
 import { openModal } from './modal.js';
 import { computeStreaks, subjectsOf } from './streaks.js';
 import { GROUPS, usesGroups } from './groups.js';

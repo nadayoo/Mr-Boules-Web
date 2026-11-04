@@ -8,11 +8,41 @@ import {
   getDocs,
   serverTimestamp,
   updateDoc,
-  increment
+  increment,
+  query,
+  where,
+  getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { analyzePdf, blankFields, promptFor, fileSha256, DUP_PROMPT } from './pdf-check.js';
 import { state } from './auth.js';
 import { GROUPS, usesGroups, lessonOf, groupOf, cleanLessonTitle, getLesson, getCachedHomework, lessonItemIds, setMyGroup } from './groups.js';
+
+// How many OTHER students already submitted exactly this file? Only a count is asked for (no one else's data comes
+// to the browser). The server fingerprints every stored submission (functions/duplicates.js). If anything fails: 0.
+async function otherCopies(file) {
+  try {
+    const hash = await fileSha256(file);
+    if (!hash) return 0;
+    const sub = collection(db, 'submissions');
+    const all = (await getCountFromServer(query(sub, where('fileHash', '==', hash)))).data().count;
+    if (!all) return 0;
+    const mine = (await getCountFromServer(query(sub, where('fileHash', '==', hash), where('email', '==', state.userEmail)))).data().count;
+    return Math.max(0, all - mine);
+  } catch (e) { return 0; }
+}
+
+// URLs of the question PDF(s) of a homework (and of the same lesson's other groups). pdf-check.js compares the
+// student's file with them to spot a file that is only the question sheet with nothing added.
+function questionPdfUrls(subject, homeworkId) {
+  const ids = new Set(lessonItemIds(subject, homeworkId));
+  const urls = [];
+  for (const it of getCachedHomework(subject) || []) {
+    if (!ids.has(it._id)) continue;
+    for (const u of it.pdfs || []) if (u && !urls.includes(u)) urls.push(u);
+  }
+  return urls.slice(0, 4);
+}
 
 export function openAdd(subject, section) {
   let fields = '';
@@ -552,6 +582,17 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
     }
   } catch (e) {}
 
+  // Blank-file check. It runs in the browser; if it cannot run, nothing changes for the student.
+  btn.textContent = 'Checking file…';
+  const check = await analyzePdf(picked, { references: questionPdfUrls(subject, homeworkId) });
+  const worry = check.ok && check.blank ? promptFor(check) : ((await otherCopies(picked)) > 0 ? DUP_PROMPT : '');
+  if (worry && !window.confirm(worry)) {
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+    return;
+  }
+  btn.textContent = 'Uploading…';
+
   try {
     const file = fileInput.files[0];
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -574,6 +615,7 @@ export async function submitStudentWork(subject, homeworkId, title = '', hwCode 
       url,
       fileType: 'pdf',
       path,
+      ...blankFields(check),
       submittedAt: serverTimestamp()
     });
 
@@ -643,6 +685,14 @@ export async function submitReplacement(subject, homeworkId, deadlineId) {
   }
 
   btn.disabled = true;
+  btn.textContent = 'Checking file…';
+  const check = await analyzePdf(file, { references: questionPdfUrls(subject, deadlineId || homeworkId) });
+  const worry = check.ok && check.blank ? promptFor(check) : ((await otherCopies(file)) > 0 ? DUP_PROMPT : '');
+  if (worry && !window.confirm(worry)) {
+    btn.disabled = false;
+    btn.textContent = 'Replace';
+    return;
+  }
   btn.textContent = 'Uploading…';
 
   try {
@@ -676,6 +726,7 @@ export async function submitReplacement(subject, homeworkId, deadlineId) {
       url,
       path,
       fileType: 'pdf',
+      ...blankFields(check),
       replacedAt: serverTimestamp(),
       replaceCount: increment(1)
     });
@@ -701,6 +752,8 @@ export async function submitReplacement(subject, homeworkId, deadlineId) {
 }
 
 export function closeModal() {
+  // a window can ask to stay open (the attendance preview does, so an unsaved upload is not thrown away by a stray click)
+  if (window.beforeModalClose && window.beforeModalClose() === false) return;
   document.getElementById('overlay').classList.remove('open');
   // The Missed Lessons panel makes the window wider; put it back to normal for other pop-ups
   const m = document.getElementById('modal');
