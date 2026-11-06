@@ -44,6 +44,27 @@ function questionPdfUrls(subject, homeworkId) {
   return urls.slice(0, 4);
 }
 
+// Uploads the files picked in the "Homework answers" field and returns [{ url, name, kind }] (PDFs and images, up to 5).
+// They are saved on the post as `answers`; students only get the links once the deadline has passed (render.js).
+async function uploadAnswerFiles(subject, btn) {
+  const out = [];
+  const input = document.getElementById('f-answers');
+  if (!input?.files?.length) return out;
+  const picked = Array.from(input.files)
+    .filter((f) => f.type === 'application/pdf' || String(f.type).startsWith('image/'))
+    .slice(0, 5);
+  let n = 0;
+  for (const file of picked) {
+    n++;
+    btn.textContent = `Uploading answers (${n}/${picked.length})…`;
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storageRef = ref(storage, `homework-answers/${subject}/${Date.now()}_${safe}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    out.push({ url: await getDownloadURL(snapshot.ref), name: file.name, kind: file.type === 'application/pdf' ? 'pdf' : 'image' });
+  }
+  return out;
+}
+
 export function openAdd(subject, section) {
   let fields = '';
 
@@ -158,6 +179,9 @@ export function openAdd(subject, section) {
 
         <label style="margin-top:12px;">Upload PDFs <span style="text-transform:none;color:var(--paper-text-faint)">(max 2)</span></label>
         <input type="file" id="f-pdfs" accept="application/pdf" multiple />
+
+        <label style="margin-top:12px;">Homework answers <span style="text-transform:none;color:var(--paper-text-faint)">(optional: PDFs or images, max 5. Hidden from students until the deadline passes)</span></label>
+        <input type="file" id="f-answers" accept="application/pdf,image/jpeg,image/png,image/gif,image/webp" multiple />
       `;
     } else if (section === 'notes') {
       fileInput = `
@@ -294,6 +318,8 @@ export async function submitAdd(subject, section) {
             data.pdfs.push(await getDownloadURL(snapshot.ref));
           }
         }
+
+        data.answers = await uploadAnswerFiles(subject, btn);
       } else {
         const rawDate = document.getElementById('f-date')?.value;
         if (rawDate) {

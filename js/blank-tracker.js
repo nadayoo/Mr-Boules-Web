@@ -25,9 +25,9 @@ const REPEAT = 'repeat';
 const INTRO = (me) => `Hello, I’m *${me}*, Mr. Boules’s assistant.`;
 const THANKS = 'Thank you for your cooperation.';
 const MESSAGE = {
-  blank: (r, me) => `${INTRO(me)} The file you submitted for ${hwName(r)} appears to be empty. Please check it and send us the correct file. ${THANKS}`,
-  dup: (r, me) => `${INTRO(me)} The file you submitted for ${hwName(r)} is identical to a file another student submitted. Please make sure you submit your own work. ${THANKS}`,
-  repeat: (list, me) => `${INTRO(me)} The files you submitted for ${list} were empty or did not contain your own work. Please make sure you submit your own work for every homework. ${THANKS}`,
+  blank: (r, me) => `${INTRO(me)} The files you submitted for ${list} were empty. Please make sure you submit your completed work for every homework. Your homework is marked as missed, and your parent will be contacted next time this happens. ${THANKS}`,
+  dup: (r, me) => `${INTRO(me)} The file you submitted for ${hwName(r)} is identical to a file another student submitted and this is unacceptable. Please make sure you submit your own work. Your homework is marked as missed, and your parent will be contacted next time this happens. ${THANKS}`,
+  repeat: (list, me) => `${INTRO(me)} The files you submitted for ${list} were empty. Please make sure you submit your completed work for every homework. Your homework is marked as missed, and your parent will be contacted next time this happens. ${THANKS}`,
 };
 
 // "farah@gmail.com" -> "Farah"
