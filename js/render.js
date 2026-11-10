@@ -1,5 +1,6 @@
 import { esc, toast, db } from './config.js';
 import { state } from './auth.js';
+import { posterTagHtml, postedAtHtml, postedAtMs } from './post-meta.js';
 import { GROUPS, usesGroups, lessonOf, groupOf, cleanLessonTitle, groupLessons, inferGroup, getMyGroup, setMyGroup, cacheHomework, getCachedHomework } from './groups.js';
 import { doc, setDoc, deleteDoc, getDoc, getDocs, collection, query, where, documentId, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -67,10 +68,12 @@ export function renderAnnouncements(subject, data) {
           <div class="card-title">
             ${esc(item.title)}
             ${scheduledBadge(item)}
+            ${posterTagHtml(item, state.isAdmin)}
             ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}
           </div>
           <div class="card-meta">${esc(formatDate(item.date))}</div>
-          ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+          ${item.desc ? `<div class="card-desc card-desc-post">${esc(item.desc)}</div>` : ''}
+          ${postedAtHtml(item)}
         </div>
         ${delBtn(subject, 'announcements', item._id)}
       </div>
@@ -202,6 +205,7 @@ function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBad
             <div class="card-title">
               ${esc(displayTitle || item.title)}
               ${scheduledBadge(item)}
+              ${posterTagHtml(item, state.isAdmin)}
               ${extraBadge}
               ${item.hwCode ? `<span class="badge chapter">${esc(item.hwCode)}</span>` : ''}
               ${item.badge ? `<span class="badge ${esc(item.badge)}">${esc(item.badge)}</span>` : ''}
@@ -221,7 +225,7 @@ function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBad
               ${isExpired ? ' • <span style="color:var(--rust);">Closed</span>' : ''}
             </div>
 
-            ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+            ${item.desc ? `<div class="card-desc card-desc-post">${esc(item.desc)}</div>` : ''}
 
             ${images.length ? `
               <div class="hw-files" style="margin-top:10px;">
@@ -279,6 +283,7 @@ function hwCardHtml(subject, item, { mySub, mySubId, now, displayTitle, extraBad
                 `}
               </div>
             ` : ''}
+            ${postedAtHtml(item)}
           </div>
           ${delBtn(subject, 'homework', item._id)}
         </div>
@@ -476,15 +481,17 @@ export function renderNotes(subject, data) {
           <div class="card-title">
             ${esc(item.title)}
             ${scheduledBadge(item)}
+            ${posterTagHtml(item, state.isAdmin)}
             ${item.chapter ? `<span class="badge chapter">${esc(item.chapter)}</span>` : ''}
           </div>
           <div class="card-meta">${esc(formatDate(item.date))}</div>
-          ${item.desc ? `<div class="card-desc">${esc(item.desc)}</div>` : ''}
+          ${item.desc ? `<div class="card-desc card-desc-post">${esc(item.desc)}</div>` : ''}
           ${item.link
             ? `<a class="card-link" href="${esc(item.link)}" target="_blank" rel="noopener">
                  <i class="ti ti-external-link"></i> Open file
                </a>`
             : ''}
+          ${postedAtHtml(item)}
         </div>
         ${delBtn(subject, 'notes', item._id)}
       </div>
@@ -531,7 +538,7 @@ export function renderSchedule(subject, data) {
       <div class="sched-day-name">${esc(day)}</div>${grouped[day].map(item => `
         <div class="sched-item">
           <div>
-            <div class="sched-topic">${esc(item.time)}</div>
+            <div class="sched-topic">${esc(item.time)} ${posterTagHtml(item, state.isAdmin)}</div>
             ${(item.group || item.lesson) ? `
               <div class="sched-meta">
                 ${item.group ? `<span>${esc(item.group)}</span>` : ''}
@@ -546,6 +553,23 @@ export function renderSchedule(subject, data) {
   `).join('')}</div>`;
 }
 
+// Marks come in one row per student. Rows of the same quiz are shown together in one folder.
+// (Quiz names are matched ignoring capital letters and extra spaces.)
+export function groupMarksByQuiz(rows) {
+  const map = new Map();
+  rows.forEach(item => {
+    const name = String(item.quiz || '').trim().replace(/\s+/g, ' ') || 'Untitled quiz';
+    const key = name.toLowerCase();
+    if (!map.has(key)) map.set(key, { key, name, items: [] });
+    map.get(key).items.push(item);
+  });
+  return [...map.values()];       // newest quiz first, because the list already comes newest first
+}
+
+// Which folders the person opened or closed. Kept, so a live update does not snap them shut.
+const markFolderOpen = new Map();
+window.markFolderToggle = (el) => { if (el && el.dataset) markFolderOpen.set(el.dataset.key, el.open); };
+
 export function renderMarks(subject, data) {
   const el = document.getElementById(`list-${subject}-marks`);
   if (!el) return;
@@ -559,37 +583,64 @@ export function renderMarks(subject, data) {
     return;
   }
 
-  el.innerHTML = `
-    <div class="marks-table-wrap">
-      <table class="marks-table">
-        <thead>
-          <tr>
-            <th>Quiz / Exam</th>
-            ${state.isAdmin ? '<th>Student Email</th>' : ''}
-            <th>Mark</th>
-            <th>PDF</th>
-            ${state.isAdmin ? '<th>Action</th>' : ''}
-          </tr>
-        </thead>
-        <tbody>
-          ${filteredData.map(item => `
+  el.innerHTML = groupMarksByQuiz(filteredData).map(folder => {
+    const key = `${subject}|${folder.key}`;
+    // Students have only a row or two per quiz, so their folders start open. Admins have a whole class, so they start closed.
+    const isOpen = markFolderOpen.has(key) ? markFolderOpen.get(key) : !state.isAdmin;
+
+    // Admin only: who uploaded this quiz (one tag per assistant)
+    const uploaders = [...new Set(folder.items.map(i => i.postedBy).filter(Boolean))];
+    const tags = uploaders.map(email => posterTagHtml({ postedBy: email }, state.isAdmin)).join(' ');
+
+    // The upload time = the earliest row of the folder
+    const times = folder.items.map(i => postedAtMs(i)).filter(t => t != null);
+    const posted = times.length ? postedAtHtml({ createdAt: new Date(Math.min(...times)) }) : '';
+
+    return `
+    <details class="marks-folder" data-key="${esc(key)}" ${isOpen ? 'open' : ''} ontoggle="window.markFolderToggle(this)">
+      <summary class="marks-folder-head">
+        <i class="ti ti-folder marks-folder-icon"></i>
+        <div class="marks-folder-main">
+          <div class="marks-folder-title">
+            ${esc(folder.name)}
+            ${state.isAdmin ? `<span class="badge chapter">${folder.items.length} ${folder.items.length === 1 ? 'student' : 'students'}</span>` : ''}
+            ${tags}
+          </div>
+          ${posted}
+        </div>
+        <i class="ti ti-chevron-down marks-folder-chev"></i>
+      </summary>
+      <div class="marks-table-wrap">
+        <table class="marks-table">
+          <thead>
             <tr>
-              <td>${esc(item.quiz)}</td>${state.isAdmin ? `<td>${esc(item.email)}</td>` : ''}
-              <td><span class="mark-badge">${esc(item.mark)}</span></td>
-              <td>
-                ${item.pdfUrl
-                  ? `<a class="card-link" href="${esc(item.pdfUrl)}" target="_blank" rel="noopener">
-                       <i class="ti ti-file-type-pdf"></i> Download
-                     </a>`
-                  : '<span style="color:var(--ink-text-faint);font-size:12px;">—</span>'}
-              </td>
-              ${state.isAdmin ? `<td>${delBtn(subject, 'marks', item._id)}</td>` : ''}
+              <th>Quiz / Exam</th>
+              ${state.isAdmin ? '<th>Student Email</th>' : ''}
+              <th>Mark</th>
+              <th>PDF</th>
+              ${state.isAdmin ? '<th>Action</th>' : ''}
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
+          </thead>
+          <tbody>
+            ${folder.items.map(item => `
+              <tr>
+                <td>${esc(item.quiz)}</td>${state.isAdmin ? `<td>${esc(item.email)}</td>` : ''}
+                <td><span class="mark-badge">${esc(item.mark)}</span>${item.grade ? ` <span class="grade-badge">${esc(item.grade)}</span>` : ''}</td>
+                <td>
+                  ${item.pdfUrl
+                    ? `<a class="card-link" href="${esc(item.pdfUrl)}" target="_blank" rel="noopener">
+                           <i class="ti ti-file-type-pdf"></i> Download
+                         </a>`
+                    : '<span style="color:var(--ink-text-faint);font-size:12px;">—</span>'}
+                </td>
+                ${state.isAdmin ? `<td>${delBtn(subject, 'marks', item._id)}</td>` : ''}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
 }
 
 // Attendance history, newest date first. The same day: the higher lesson first, then groups in order, then the newest upload.
@@ -629,6 +680,7 @@ export function renderAttendance(subject, data) {
           <div class="card-title">
             ${esc(item.title || 'Weekly Lesson')}
             <span class="badge done">Present</span>
+            ${posterTagHtml(item, state.isAdmin)}
           </div>
           <div class="card-meta">
             📅 ${esc(formatDate(item.date || ''))}
@@ -640,6 +692,7 @@ export function renderAttendance(subject, data) {
               ${item.notSavedIds?.length ? ` • <span style="color:var(--rust);">${item.notSavedIds.length} not saved (no Cambridge/Edexcel subject)</span>` : ''}
             </div>
           ` : ''}
+          ${postedAtHtml(item)}
         </div>
         ${delBtn(subject, 'attendance', item._id)}
       </div>

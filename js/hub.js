@@ -152,8 +152,23 @@ export function startListeners() {
   }
 }
 
+// What is about to be deleted, in words, so the question says exactly which item it is
+export function describeForDelete(section, item) {
+  if (!item) return 'this item';
+  if (section === 'marks') return `the mark of ${item.email || 'this student'} in "${item.quiz || 'this quiz'}"`;
+  if (section === 'schedule') {
+    const when = [item.day, item.time].filter(Boolean).join(' ');
+    const extra = [item.group, item.lesson].filter(Boolean).join(', ');
+    return `"${[when, extra && `(${extra})`].filter(Boolean).join(' ') || 'this slot'}"`;
+  }
+  const title = String(item.title || '').trim();
+  return title ? `"${title}"` : 'this item';
+}
+
 export async function _del(subject, section, id) {
   if (!state.isAdmin) return;
+  const item = (store[`${subject}_${section}`]?.items || []).find((x) => x._id === id);
+  if (!window.confirm(`Are you sure you want to delete ${describeForDelete(section, item)}?\n\nThis cannot be undone.`)) return;
   try {
     await deleteDoc(doc(db, `${subject}_${section}`, id));
     toast('Deleted');

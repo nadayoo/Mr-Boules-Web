@@ -221,3 +221,32 @@ a { color: inherit; } button { font-family: inherit; }
 
 .sched-meta { margin-top: 6px; display: flex; gap: 6px; }
 .sched-meta span { font-family: var(--font-mono); font-size: 10px; background: var(--ink-700); color: var(--ink-text-dim); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--ink-line); }
+/* Who posted a card (admins only) + when it was posted (everyone) */
+.card-posted { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-text-faint); margin-top: 8px; }
+.sched-item .card-posted { margin-top: 3px; font-size: 10px; }
+.sched-topic .poster-tag { margin-left: 4px; vertical-align: middle; }
+
+/* Grade next to the mark */
+.grade-badge { display: inline-block; margin-left: 4px; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-family: var(--font-mono); background: var(--amber-dim); color: var(--amber); }
+
+/* Marks upload progress bar */
+.upload-progress { margin-top: 1.2rem; }
+.upload-progress-top { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11.5px; color: var(--paper-text-dim); margin-bottom: 6px; }
+.upload-progress-track { height: 8px; background: var(--paper-line, #e5dfd0); border-radius: 8px; overflow: hidden; }
+.upload-progress-fill { height: 100%; width: 0; background: var(--chalk-teal); border-radius: 8px; transition: width 0.2s ease; }
+.upload-progress-eta { font-family: var(--font-mono); font-size: 10.5px; color: var(--paper-text-faint); margin-top: 5px; min-height: 13px; }
+
+/* Marks folders: one per quiz */
+.marks-folder { background: #fff; border: 1px solid var(--ink-line); border-radius: var(--radius-lg); margin-bottom: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+.marks-folder-head { display: flex; align-items: center; gap: 13px; padding: 1rem 1.3rem; cursor: pointer; list-style: none; user-select: none; }
+.marks-folder-head::-webkit-details-marker { display: none; }
+.marks-folder-head:hover { background: rgba(0,0,0,0.015); }
+.marks-folder-icon { font-size: 20px; color: var(--amber); }
+.marks-folder-main { flex: 1; min-width: 0; }
+.marks-folder-title { font-size: 14.5px; font-weight: 600; color: var(--ink-text); display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.marks-folder-chev { color: var(--ink-text-faint); transition: transform 0.15s; }
+.marks-folder[open] .marks-folder-chev { transform: rotate(180deg); }
+.marks-folder .marks-table-wrap { margin-top: 0; border: none; border-top: 1px solid var(--ink-line); border-radius: 0; }
+
+/* Posted text keeps the line breaks and blank lines that were typed */
+.card-desc-post { white-space: pre-line; overflow-wrap: anywhere; }

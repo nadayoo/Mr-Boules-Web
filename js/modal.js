@@ -85,12 +85,12 @@ export function openAdd(subject, section) {
     fields = `
       <label>Quiz Title</label>
       <input type="text" id="m-quiz-title" placeholder="e.g. Quiz 1 - Pure Math" />
-      <label>CSV File <span style="text-transform:none;color:var(--paper-text-faint)">(email, mark, id)</span></label>
+      <label>CSV File <span style="text-transform:none;color:var(--paper-text-faint)">(id, email, mark, grade)</span></label>
       <input type="file" id="m-csv-file" accept=".csv,text/csv" />
       <label>ZIP of PDFs <span style="text-transform:none;color:var(--paper-text-faint)">(named by student ID)</span></label>
       <input type="file" id="m-zip-file" accept=".zip,application/zip" />
       <p style="font-size:11px; color:var(--paper-text-faint); margin-top:12px; line-height:1.5;">
-        CSV format: <code>email,mark,id</code>
+        CSV format: <code>id,email,mark,grade</code> (grade is optional)
       </p>`;
 
     const subjLabel = SUBJECT_META[subject]?.label || subject;
@@ -249,7 +249,7 @@ export async function submitAdd(subject, section) {
   btn.textContent = 'Saving…';
 
   try {
-    let data = { createdAt: serverTimestamp() };
+    let data = { createdAt: serverTimestamp(), postedBy: state.userEmail || '' };
 
     if (section === 'schedule') {
       data.day = document.getElementById('f-day').value;
@@ -455,7 +455,8 @@ async function submitHomework(subject) {
         images,
         pdfs,
         answers,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        postedBy: state.userEmail || ''
       };
       const pub = document.getElementById(`g-publish-${g}`)?.value;
       if (pub) data.publishAt = new Date(pub);

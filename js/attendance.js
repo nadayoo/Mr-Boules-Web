@@ -6,6 +6,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { closeModal } from './modal.js';
+import { state } from './auth.js';
 import { subjectsOf } from './streaks.js';
 
 // Attendance upload. Whichever subject tab you upload from, each student is saved under THEIR OWN
@@ -166,7 +167,7 @@ async function legacyUpload(subject, sessionTitle, sessionDate, file, btn) {
     });
     await addDoc(collection(db, `${subject}_attendance`), {
       title: sessionTitle, date: sessionDate, subject, presentIds: validIds, presentEmails, unlinkedIds,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(), postedBy: state.userEmail || ''
     });
     closeModal();
     toast(`Attendance uploaded (${presentEmails.length} students matched)`);
@@ -268,7 +269,8 @@ export async function confirmAttendanceSave() {
         presentEmails: b.emails,
         unlinkedIds: unlinkedPlaced ? [] : p.plan.unlinked,
         notSavedIds: unlinkedPlaced ? [] : [...p.plan.other, ...(p.plan.unknownTo === 'none' ? p.plan.unknown : [])].map((o) => o.id),   // students left out
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        postedBy: state.userEmail || ''
       });
       unlinkedPlaced = true;
       saved.push(`${SUBJECT_LABEL[sub]} ${b.emails.length}`);

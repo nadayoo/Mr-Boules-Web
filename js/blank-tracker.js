@@ -25,9 +25,9 @@ const REPEAT = 'repeat';
 const INTRO = (me) => `Hello, I’m *${me}*, Mr. Boules’s assistant.`;
 const THANKS = 'Thank you for your cooperation.';
 const MESSAGE = {
-  blank: (r, me) => `${INTRO(me)} The files you submitted for ${list} were empty. Please make sure you submit your completed work for every homework. Your homework is marked as missed, and your parent will be contacted next time this happens. ${THANKS}`,
-  dup: (r, me) => `${INTRO(me)} The file you submitted for ${hwName(r)} is identical to a file another student submitted and this is unacceptable. Please make sure you submit your own work. Your homework is marked as missed, and your parent will be contacted next time this happens. ${THANKS}`,
-  repeat: (list, me) => `${INTRO(me)} The files you submitted for ${list} were empty. Please make sure you submit your completed work for every homework. Your homework is marked as missed, and your parent will be contacted next time this happens. ${THANKS}`,
+  blank: (r, me) => `${INTRO(me)} The file you submitted for ${hwName(r)} appears to be empty. Please check it and send us the correct file. ${THANKS}`,
+  dup: (r, me) => `${INTRO(me)} The file you submitted for ${hwName(r)} is identical to a file another student submitted. Please make sure you submit your own work. ${THANKS}`,
+  repeat: (list, me) => `${INTRO(me)} The files you submitted for ${list} were empty or did not contain your own work. Please make sure you submit your own work for every homework. ${THANKS}`,
 };
 
 // "farah@gmail.com" -> "Farah"
@@ -118,32 +118,55 @@ async function sheetCheckStatus() {
 }
 
 // ------------------------------------------------------------------ data
+const LOAD_TIMEOUT_MS = 25000;
+const idCache = new Map();     // student email -> student ID. Kept while the page is open, so Refresh does not look them up again.
+let loadSeq = 0;               // only the newest load may fill the screen (pressing Refresh twice must not mix two loads)
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 async function load() {
+  const seq = ++loadSeq;
   const body = el('bt-body');
   if (body) body.innerHTML = '<div style="padding:14px 0;font-size:13px;">Loading…</div>';
+  const t0 = Date.now();
   try {
-    // flagged submissions (empty / sheet only, and same-file), the ticks, and the record of each student involved (for their ID)
-    const [blankSnap, dupSnap] = await Promise.all([
-      getDocs(query(collection(db, 'submissions'), where('blank', '==', true))),
-      getDocs(query(collection(db, 'submissions'), where('dup', '==', true))),
-    ]);
-    const flagged = {};
-    for (const snap of [blankSnap, dupSnap]) snap.forEach((d) => { flagged[d.id] = { subId: d.id, ...d.data() }; });
+    const data = await withTimeout((async () => {
+      // 1) Everything that does not depend on anything else is asked at the same time:
+      //    flagged submissions (empty / sheet only, and same-file) and the ticks saved by the admins.
+      const [blankSnap, dupSnap, acksRes] = await Promise.all([
+        getDocs(query(collection(db, 'submissions'), where('blank', '==', true))),
+        getDocs(query(collection(db, 'submissions'), where('dup', '==', true))),
+        getDocs(collection(db, 'blankAcks')).then(
+          (snap) => ({ snap, ok: true }),
+          (e) => { console.warn('Could not load the ticks', e); return { snap: null, ok: false }; }
+        ),
+      ]);
+      const flagged = {};
+      for (const snap of [blankSnap, dupSnap]) snap.forEach((d) => { flagged[d.id] = { subId: d.id, ...d.data() }; });
+      const acks = {};
+      if (acksRes.snap) acksRes.snap.forEach((d) => { acks[d.id] = { ackId: d.id, ...d.data() }; });
 
-    const acks = {};
-    let ackOk = true;
-    try { (await getDocs(collection(db, 'blankAcks'))).forEach((d) => { acks[d.id] = { ackId: d.id, ...d.data() }; }); }
-    catch (e) { ackOk = false; console.warn('Could not load the ticks', e); }
+      // 2) The ID of each student involved. Only the ones not seen before are read.
+      const emails = new Set();
+      Object.values(flagged).forEach((x) => { emails.add(lc(x.email)); (x.dupOf || []).forEach((o) => emails.add(lc(o.email))); });
+      Object.values(acks).forEach((a) => { if (a.contacted && a.email) emails.add(lc(a.email)); });
+      emails.delete('');
+      const missing = [...emails].filter((e) => !idCache.has(e));
+      await Promise.all(missing.map(async (e) => {
+        try { const st = await getDoc(doc(db, 'students', e)); if (st.exists()) idCache.set(e, String(st.data().id || '')); } catch (err) {}
+      }));
+      const ids = {};
+      emails.forEach((e) => { if (idCache.has(e)) ids[e] = idCache.get(e); });
+      return { flagged, acks, ackOk: acksRes.ok, ids, looked: missing.length };
+    })(), LOAD_TIMEOUT_MS);
 
-    const emails = new Set();
-    Object.values(flagged).forEach((x) => { emails.add(lc(x.email)); (x.dupOf || []).forEach((o) => emails.add(lc(o.email))); });
-    Object.values(acks).forEach((a) => { if (a.contacted && a.email) emails.add(lc(a.email)); });
-    emails.delete('');
-    const ids = {};
-    await Promise.all([...emails].map(async (e) => {
-      try { const s = await getDoc(doc(db, 'students', e)); if (s.exists()) ids[e] = String(s.data().id || ''); } catch (err) {}
-    }));
-
+    if (seq !== loadSeq) return;
+    const { flagged, acks, ackOk, ids } = data;
     view.acks = acks;
     view.ids = ids;
     view.flagged = flagged;
@@ -152,10 +175,14 @@ async function load() {
       .filter((x) => !ackFor(x) || !(ackFor(x).ok || ackFor(x).contacted))      // already ticked files stay hidden; a replaced file is a new file
       .sort((a, b) => stamp(b) - stamp(a));
     view.msg = ackOk ? '' : "Couldn't load the ticks saved by other admins.";
+    console.debug(`[blank-tracker] loaded in ${Date.now() - t0} ms: ${Object.keys(flagged).length} flagged, ${Object.keys(acks).length} ticks, ${data.looked} student lookups`);
   } catch (e) {
+    if (seq !== loadSeq) return;
     console.error(e);
     view.rows = [];
-    view.msg = "Couldn't load the flagged files. Check the connection and press Refresh.";
+    view.msg = e && e.message === 'timeout'
+      ? 'This is taking too long. Check the connection and press Refresh.'
+      : "Couldn't load the flagged files. Check the connection and press Refresh.";
   }
   render();
 }
